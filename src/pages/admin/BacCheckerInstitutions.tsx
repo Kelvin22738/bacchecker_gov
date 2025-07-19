@@ -27,7 +27,8 @@ import {
   TrendingUp,
   Shield,
   Scale,
-  GraduationCap
+  GraduationCap,
+  RefreshCw
 } from 'lucide-react';
 import { 
   masterInstitutions, 
