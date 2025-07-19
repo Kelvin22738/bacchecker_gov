@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
+import { tertiaryInstitutionAPI, TertiaryInstitution } from '../../utils/supabase';
 import {
   Building2,
   Plus,
@@ -36,7 +38,24 @@ import {
 export function BacCheckerInstitutions() {
   const [selectedInstitution, setSelectedInstitution] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [tertiaryInstitutions, setTertiaryInstitutions] = useState<TertiaryInstitution[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadTertiaryInstitutions();
+  }, []);
+
+  const loadTertiaryInstitutions = async () => {
+    try {
+      setLoading(true);
+      const data = await tertiaryInstitutionAPI.getGTECManaged();
+      setTertiaryInstitutions(data);
+    } catch (error) {
+      console.error('Error loading tertiary institutions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // All institutions for BacChecker Admin
   const institutions = [
@@ -176,7 +195,14 @@ export function BacCheckerInstitutions() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Government Institutions Management</h1>
-          <p className="text-gray-600">Manage all government institutions and their verification services</p>
+          <p className="text-gray-600">
+            Manage all government institutions and their verification services
+            {tertiaryInstitutions.length > 0 && (
+              <span className="ml-2 text-blue-600 font-medium">
+                • {tertiaryInstitutions.length} GTEC institutions managed
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex space-x-2">
           <Button variant="outline">
@@ -190,19 +216,63 @@ export function BacCheckerInstitutions() {
         </div>
       </div>
 
-      {/* Recently Onboarded Institutions */}
-      {recentlyOnboardedInstitutions.length > 0 && (
+      {/* GTEC Managed Institutions Summary */}
+      {tertiaryInstitutions.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Recently Onboarded ({recentlyOnboardedInstitutions.length})</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <img src="/GTEC-LOGO-removebg-preview.png" alt="GTEC" className="h-8 w-8" />
+                <div>
+                  <CardTitle>GTEC Managed Institutions ({tertiaryInstitutions.length})</CardTitle>
+                  <p className="text-sm text-gray-600">Tertiary institutions under GTEC oversight</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={loadTertiaryInstitutions}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-900">{tertiaryInstitutions.filter(i => i.onboarding_status === 'completed').length}</div>
+                <div className="text-sm text-blue-700">Active Institutions</div>
+              </div>
+              <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                <div className="text-2xl font-bold text-yellow-900">{tertiaryInstitutions.filter(i => i.onboarding_status !== 'completed').length}</div>
+                <div className="text-sm text-yellow-700">Pending Onboarding</div>
+              </div>
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-900">{tertiaryInstitutions.reduce((sum, i) => sum + (i.student_population || 0), 0).toLocaleString()}</div>
+                <div className="text-sm text-green-700">Total Students</div>
+              </div>
+              <div className="text-center p-3 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-900">{tertiaryInstitutions.reduce((sum, i) => sum + (i.faculty_count || 0), 0).toLocaleString()}</div>
+                <div className="text-sm text-purple-700">Total Faculty</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recently Onboarded Institutions */}
+      {tertiaryInstitutions.filter(i => i.onboarding_status === 'completed').slice(0, 3).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recently Onboarded Tertiary Institutions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentlyOnboardedInstitutions.map((institution) => (
+              {tertiaryInstitutions
+                .filter(i => i.onboarding_status === 'completed')
+                .slice(0, 3)
+                .map((institution) => (
                 <div key={institution.id} className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <Building2 className="h-5 w-5 text-green-600" />
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <GraduationCap className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-900">{institution.name}</h4>
@@ -210,11 +280,13 @@ export function BacCheckerInstitutions() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Badge variant="success">{institution.status}</Badge>
-                    <span className="text-sm text-gray-500">{institution.onboardedDate}</span>
+                    <Badge variant="success">Completed</Badge>
+                    <span className="text-sm text-gray-500">
+                      {institution.onboarded_at ? new Date(institution.onboarded_at).toLocaleDateString() : 'Recently'}
+                    </span>
                     <Button size="sm" variant="outline">
                       <Eye className="h-4 w-4 mr-1" />
-                      View Setup
+                      View Institution
                     </Button>
                   </div>
                 </div>
@@ -222,6 +294,12 @@ export function BacCheckerInstitutions() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {loading && (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
+        </div>
       )}
 
       {/* Active Institutions Grid */}

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
+import { tertiaryInstitutionAPI, TertiaryInstitution } from '../../utils/supabase';
 import {
   Building2,
   Plus,
@@ -30,107 +32,63 @@ import {
 export function InstitutionsManagement() {
   const [selectedInstitution, setSelectedInstitution] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [showCoursesModal, setShowCoursesModal] = useState(false);
   const [selectedInstitutionData, setSelectedInstitutionData] = useState<any>(null);
+  const [institutions, setInstitutions] = useState<TertiaryInstitution[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingInstitutions, setPendingInstitutions] = useState<TertiaryInstitution[]>([]);
 
-  // Mock tertiary institutions data
-  const institutions = [
-    {
-      id: 'ug',
-      name: 'University of Ghana',
-      acronym: 'UG',
-      description: 'Premier university in Ghana offering undergraduate and graduate programs.',
-      contact: {
-        address: 'University of Ghana, Legon, Accra',
-        phone: '+233-302-500381',
-        email: 'info@ug.edu.gh',
-        website: 'https://ug.edu.gh'
-      },
-      status: 'Active',
-      accreditationStatus: 'Fully Accredited',
-      establishedYear: 1948,
-      studentPopulation: 38000,
-      facultyCount: 1200,
-      coursesOffered: 156,
-      stats: {
-        totalRequests: 1247,
-        pendingRequests: 23,
-        completedRequests: 1198,
-        successRate: 96.1
-      }
-    },
-    {
-      id: 'knust',
-      name: 'Kwame Nkrumah University of Science and Technology',
-      acronym: 'KNUST',
-      description: 'Leading technological university in Ghana.',
-      contact: {
-        address: 'KNUST, Kumasi, Ghana',
-        phone: '+233-322-060319',
-        email: 'info@knust.edu.gh',
-        website: 'https://knust.edu.gh'
-      },
-      status: 'Active',
-      accreditationStatus: 'Fully Accredited',
-      establishedYear: 1952,
-      studentPopulation: 45000,
-      facultyCount: 1500,
-      coursesOffered: 189,
-      stats: {
-        totalRequests: 1456,
-        pendingRequests: 34,
-        completedRequests: 1389,
-        successRate: 95.4
-      }
-    },
-    {
-      id: 'ucc',
-      name: 'University of Cape Coast',
-      acronym: 'UCC',
-      description: 'Leading university in education and liberal arts.',
-      contact: {
-        address: 'University of Cape Coast, Cape Coast',
-        phone: '+233-332-132480',
-        email: 'info@ucc.edu.gh',
-        website: 'https://ucc.edu.gh'
-      },
-      status: 'Active',
-      accreditationStatus: 'Fully Accredited',
-      establishedYear: 1962,
-      studentPopulation: 32000,
-      facultyCount: 980,
-      coursesOffered: 134,
-      stats: {
-        totalRequests: 892,
-        pendingRequests: 18,
-        completedRequests: 856,
-        successRate: 96.0
-      }
+  useEffect(() => {
+    loadInstitutions();
+  }, []);
+
+  const loadInstitutions = async () => {
+    try {
+      setLoading(true);
+      const data = await tertiaryInstitutionAPI.getGTECManaged();
+      
+      // Separate completed and pending institutions
+      const completed = data.filter(inst => inst.onboarding_status === 'completed');
+      const pending = data.filter(inst => inst.onboarding_status !== 'completed');
+      
+      setInstitutions(completed);
+      setPendingInstitutions(pending);
+    } catch (error) {
+      console.error('Error loading institutions:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const pendingInstitutions = [
-    {
-      id: 'pending-1',
-      name: 'Ghana Institute of Management and Public Administration',
-      acronym: 'GIMPA',
-      email: 'admin@gimpa.edu.gh',
-      submittedDate: '2024-01-20',
-      status: 'Pending Onboarding'
-    },
-    {
-      id: 'pending-2',
-      name: 'Ashesi University',
-      acronym: 'ASHESI',
-      email: 'admin@ashesi.edu.gh',
-      submittedDate: '2024-01-22',
-      status: 'Documents Under Review'
+  const handleSendOnboardingEmail = async (formData: any) => {
+    try {
+      // Create new institution in database
+      const newInstitution = await tertiaryInstitutionAPI.create({
+        name: formData.name,
+        acronym: formData.acronym,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        website: formData.website,
+        established_year: formData.established_year,
+        student_population: formData.student_population,
+        faculty_count: formData.faculty_count,
+        institution_type: formData.institution_type,
+        gtec_managed: true
+      });
+
+      // Generate onboarding URL
+      const onboardingUrl = `${window.location.origin}/onboarding/${newInstitution.onboarding_token}`;
+      
+      // In a real app, this would send an actual email
+      alert(`GTEC onboarding email sent to ${formData.email}!\n\nOnboarding URL: ${onboardingUrl}\n\nThe institution will receive simplified setup instructions with GTEC branding and pre-configured settings.`);
+      
+      // Refresh the institutions list
+      loadInstitutions();
+    } catch (error) {
+      console.error('Error creating institution:', error);
+      alert('Error creating institution. Please try again.');
     }
-  ];
-
-  const handleSendOnboardingEmail = (institutionData: any) => {
-    alert(`GTEC onboarding email sent to ${institutionData.email}. The institution will receive simplified setup instructions with GTEC branding and pre-configured settings.`);
     setShowAddModal(false);
   };
 
@@ -163,7 +121,13 @@ export function InstitutionsManagement() {
       {pendingInstitutions.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Pending Onboarding ({pendingInstitutions.length})</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Pending Onboarding ({pendingInstitutions.length})</CardTitle>
+              <Button variant="outline" size="sm" onClick={loadInstitutions}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -179,11 +143,33 @@ export function InstitutionsManagement() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Badge variant="warning">{institution.status}</Badge>
-                    <span className="text-sm text-gray-500">{institution.submittedDate}</span>
-                    <Button size="sm" onClick={() => setShowOnboardingModal(true)}>
-                      <Send className="h-4 w-4 mr-1" />
-                      Send Onboarding
+                    <Badge variant="warning">
+                      {institution.onboarding_status === 'pending' ? 'Pending Onboarding' : 
+                       institution.onboarding_status === 'in_progress' ? 'In Progress' : 'Pending'}
+                    </Badge>
+                    <span className="text-sm text-gray-500">
+                      {new Date(institution.created_at).toLocaleDateString()}
+                    </span>
+                    {institution.onboarding_token && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          const url = `${window.location.origin}/onboarding/${institution.onboarding_token}`;
+                          navigator.clipboard.writeText(url);
+                          alert('Onboarding link copied to clipboard!');
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Copy Link
+                      </Button>
+                    )}
+                    <Button size="sm" onClick={() => {
+                      const url = `${window.location.origin}/onboarding/${institution.onboarding_token}`;
+                      window.open(url, '_blank');
+                    }}>
+                      <Eye className="h-4 w-4 mr-1" />
+                      View Onboarding
                     </Button>
                   </div>
                 </div>
@@ -191,6 +177,12 @@ export function InstitutionsManagement() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {loading && (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        </div>
       )}
 
       {/* Active Institutions Grid */}
@@ -209,7 +201,7 @@ export function InstitutionsManagement() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Badge variant="success">{institution.status}</Badge>
+                  <Badge variant="success">Active</Badge>
                   <div className="flex items-center space-x-1">
                     <Activity className="h-3 w-3 text-green-500" />
                     <span className="text-xs text-green-600">Online</span>
@@ -217,30 +209,32 @@ export function InstitutionsManagement() {
                 </div>
               </div>
 
-              <p className="text-sm text-gray-600 mb-4 line-clamp-2">{institution.description}</p>
+              <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                {institution.institution_type.replace('_', ' ').toUpperCase()} • Established {institution.established_year}
+              </p>
 
               <div className="space-y-2 mb-4">
                 <div className="flex items-center text-sm text-gray-600">
                   <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span className="truncate">{institution.contact.address}</span>
+                  <span className="truncate">{institution.address}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span>{institution.contact.phone}</span>
+                  <span>{institution.phone}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span className="truncate">{institution.contact.email}</span>
+                  <span className="truncate">{institution.email}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <Globe className="h-4 w-4 mr-2 flex-shrink-0" />
                   <a 
-                    href={institution.contact.website} 
+                    href={institution.website} 
                     className="text-blue-600 hover:underline truncate"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {institution.contact.website}
+                    {institution.website}
                   </a>
                 </div>
               </div>
@@ -248,19 +242,19 @@ export function InstitutionsManagement() {
               {/* Institution Statistics */}
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <p className="text-lg font-bold text-gray-900">{institution.studentPopulation.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-gray-900">{institution.student_population?.toLocaleString() || 'N/A'}</p>
                   <p className="text-xs text-gray-600">Students</p>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <p className="text-lg font-bold text-gray-900">{institution.facultyCount}</p>
+                  <p className="text-lg font-bold text-gray-900">{institution.faculty_count || 'N/A'}</p>
                   <p className="text-xs text-gray-600">Faculty</p>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <p className="text-lg font-bold text-gray-900">{institution.coursesOffered}</p>
+                  <p className="text-lg font-bold text-gray-900">--</p>
                   <p className="text-xs text-gray-600">Courses</p>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <p className="text-lg font-bold text-gray-900">{institution.stats.successRate}%</p>
+                  <p className="text-lg font-bold text-gray-900">--</p>
                   <p className="text-xs text-gray-600">Success Rate</p>
                 </div>
               </div>
@@ -269,9 +263,9 @@ export function InstitutionsManagement() {
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-green-900">Accreditation Status</span>
-                  <Badge variant="success">{institution.accreditationStatus}</Badge>
+                  <Badge variant="success">{institution.accreditation_status}</Badge>
                 </div>
-                <p className="text-xs text-green-700 mt-1">Established: {institution.establishedYear}</p>
+                <p className="text-xs text-green-700 mt-1">Established: {institution.established_year}</p>
               </div>
 
               {/* Action Buttons */}
@@ -315,16 +309,30 @@ export function InstitutionsManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Institution Name *</label>
-                  <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <input 
+                    type="text" 
+                    name="name"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Acronym *</label>
-                  <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <input 
+                    type="text" 
+                    name="acronym"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Institution Type *</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <select 
+                  name="institution_type"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
                   <option value="">Select type...</option>
                   <option value="university">University</option>
                   <option value="technical">Technical University</option>
@@ -335,35 +343,69 @@ export function InstitutionsManagement() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email *</label>
-                <input type="email" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <input 
+                  type="email" 
+                  name="email"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contact Address *</label>
-                <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <input 
+                  type="text" 
+                  name="address"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                  <input type="tel" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <input 
+                    type="tel" 
+                    name="phone"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                  <input type="url" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <input 
+                    type="url" 
+                    name="website"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Established Year</label>
-                  <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <input 
+                    type="number" 
+                    name="established_year"
+                    min="1800"
+                    max={new Date().getFullYear()}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Student Population</label>
-                  <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <input 
+                    type="number" 
+                    name="student_population"
+                    min="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Programs Offered</label>
-                <textarea rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="List main academic programs..."></textarea>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Faculty Count</label>
+                <input 
+                  type="number" 
+                  name="faculty_count"
+                  min="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                />
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center space-x-2 mb-2">
@@ -375,18 +417,17 @@ export function InstitutionsManagement() {
                   They will only need to confirm their details and upload their logo to complete setup.
                 </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Institution Logo</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
-                </div>
-              </div>
               <div className="flex justify-end space-x-3 pt-4">
                 <Button variant="outline" onClick={() => setShowAddModal(false)}>
                   Cancel
                 </Button>
-                <Button onClick={() => handleSendOnboardingEmail({ email: 'new@institution.edu.gh' })}>
+                <Button onClick={(e) => {
+                  e.preventDefault();
+                  const form = e.target.closest('form');
+                  const formData = new FormData(form);
+                  const data = Object.fromEntries(formData.entries());
+                  handleSendOnboardingEmail(data);
+                }}>
                   <Send className="h-4 w-4 mr-2" />
                   Add & Send Onboarding
                 </Button>

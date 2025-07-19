@@ -41,6 +41,7 @@ import GlobalTemplatesBaccheckerAdmin from './pages/admin/GlobalTemplatesBacchec
 import GlobalTemplatesGTECAdmin from './pages/admin/GlobalTemplatesGTECAdmin';
 import SettingsBaccheckerAdmin from './pages/admin/SettingsBaccheckerAdmin';
 import SettingsGTECAdmin from './pages/admin/SettingsGTECAdmin';
+import { TertiaryOnboarding } from './pages/TertiaryOnboarding';
 
 // Placeholder components for other routes
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -245,6 +246,7 @@ function App() {
                 <UserRoutes />
               </ProtectedRoute>
             } />
+            <Route path="/onboarding/:token" element={<TertiaryOnboarding />} />
             <Route path="/settings" element={
               <ProtectedRoute allowedRoles={['bacchecker_admin', 'gtec_admin', 'tertiary_institution_user', 'institution_admin']}>
                 <InstitutionSettings />
