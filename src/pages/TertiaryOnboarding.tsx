@@ -114,8 +114,11 @@ export function TertiaryOnboarding() {
   });
 
   useEffect(() => {
-    if (token) {
+    if (token && token !== 'null' && token !== 'undefined') {
       loadInstitution();
+    } else {
+      setLoading(false);
+      navigate('/');
     }
   }, [token]);
 
