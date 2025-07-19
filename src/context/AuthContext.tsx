@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { AuthState, AuthAction, AuthUser, LoginCredentials } from '../types/auth';
+import { supabase } from '../utils/supabase';
 
 const initialState: AuthState = {
   user: null,
@@ -110,9 +111,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'LOGIN_START' });
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Use Supabase authentication
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: 'password123' // Using a default password for demo
+      });
       
+      if (authError) {
+        // If user doesn't exist in Supabase auth, try to sign them up first
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: credentials.email,
+          password: 'password123'
+        });
+        
+        if (signUpError) {
+          throw new Error('Authentication failed');
+        }
+        
+        // Now try to sign in again
+        const { data: retryAuthData, error: retryAuthError } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: 'password123'
+        });
+        
+        if (retryAuthError) {
+          throw new Error('Authentication failed after signup');
+        }
+      }
+      
+      // Find the mock user data for the authenticated email
       const user = mockUsers.find(u => u.email === credentials.email);
       
       if (!user) {
@@ -134,6 +161,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    // Sign out from Supabase
+    supabase.auth.signOut();
     localStorage.removeItem('bacchecker_user');
     // Clear all onboarding data for all institutions
     Object.keys(localStorage).forEach(key => {
@@ -146,6 +175,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check for stored user on mount
   useEffect(() => {
+    // Check Supabase auth session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email) {
+        const user = mockUsers.find(u => u.email === session.user.email);
+        if (user) {
+          dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+          return;
+        }
+      }
+    });
+    
+    // Fallback to localStorage check
     const storedUser = localStorage.getItem('bacchecker_user');
     if (storedUser) {
       try {
@@ -155,6 +196,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('bacchecker_user');
       }
     }
+    
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('bacchecker_user');
+        dispatch({ type: 'LOGOUT' });
+      }
+    });
+    
+    return () => subscription.unsubscribe();
   }, []);
 
   return (
