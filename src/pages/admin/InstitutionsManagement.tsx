@@ -26,7 +26,8 @@ import {
   CheckCircle,
   FileText,
   TrendingUp,
-  BookOpen
+  BookOpen,
+  RefreshCw
 } from 'lucide-react';
 
 export function InstitutionsManagement() {
