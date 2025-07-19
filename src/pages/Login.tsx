@@ -41,7 +41,7 @@ export function Login() {
 
   const handleDemoAccountClick = (account) => {
     console.log('Demo account selected:', account);
-    setCredentials({ email: account.email, password: 'demo' });
+    setCredentials({ email: account.email, password: 'password123' });
   };
 
   const demoAccounts = [
