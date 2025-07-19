@@ -63,6 +63,11 @@ export function InstitutionsManagement() {
 
   const handleSendOnboardingEmail = async (formData: any) => {
     try {
+      // Convert numeric fields to integers or undefined if empty
+      const established_year = formData.established_year ? parseInt(formData.established_year) : undefined;
+      const student_population = formData.student_population ? parseInt(formData.student_population) : undefined;
+      const faculty_count = formData.faculty_count ? parseInt(formData.faculty_count) : undefined;
+
       // Create new institution in database
       const newInstitution = await tertiaryInstitutionAPI.create({
         name: formData.name,
@@ -71,9 +76,9 @@ export function InstitutionsManagement() {
         phone: formData.phone,
         address: formData.address,
         website: formData.website,
-        established_year: formData.established_year,
-        student_population: formData.student_population,
-        faculty_count: formData.faculty_count,
+        established_year,
+        student_population,
+        faculty_count,
         institution_type: formData.institution_type,
         gtec_managed: true
       });
