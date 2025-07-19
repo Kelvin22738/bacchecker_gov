@@ -114,14 +114,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Use Supabase authentication
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: credentials.email,
-        password: 'password123' // Using a default password for demo
+        password: credentials.password
       });
       
       if (authError) {
         // If user doesn't exist in Supabase auth, try to sign them up first
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: credentials.email,
-          password: 'password123'
+          password: credentials.password
         });
         
         if (signUpError) {
@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Now try to sign in again
         const { data: retryAuthData, error: retryAuthError } = await supabase.auth.signInWithPassword({
           email: credentials.email,
-          password: 'password123'
+          password: credentials.password
         });
         
         if (retryAuthError) {
