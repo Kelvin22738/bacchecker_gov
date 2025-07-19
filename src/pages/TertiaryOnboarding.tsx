@@ -37,6 +37,7 @@ export function TertiaryOnboarding() {
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [canceling, setCanceling] = useState(false);
   const [courses, setCourses] = useState<InstitutionCourse[]>([]);
   const [showAddCourseModal, setShowAddCourseModal] = useState(false);
 
@@ -220,6 +221,33 @@ export function TertiaryOnboarding() {
       alert('Error completing onboarding. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const cancelOnboarding = async () => {
+    if (!institution) return;
+
+    if (!confirm('Are you sure you want to cancel the onboarding process? This will remove your institution from the pending list.')) {
+      return;
+    }
+
+    setCanceling(true);
+    try {
+      // Delete the institution record to remove it from pending
+      const { error } = await supabase
+        .from('tertiary_institutions')
+        .delete()
+        .eq('id', institution.id);
+
+      if (error) throw error;
+
+      alert('Onboarding has been cancelled. Your institution has been removed from the system.');
+      navigate('/');
+    } catch (error) {
+      console.error('Error cancelling onboarding:', error);
+      alert('Error cancelling onboarding. Please try again.');
+    } finally {
+      setCanceling(false);
     }
   };
 
@@ -666,6 +694,12 @@ export function TertiaryOnboarding() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid Onboarding Link</h2>
           <p className="text-gray-600">This onboarding link is invalid or has expired.</p>
+          <Button 
+            className="mt-4" 
+            onClick={() => navigate('/')}
+          >
+            Return to Home
+          </Button>
         </div>
       </div>
     );
@@ -703,6 +737,15 @@ export function TertiaryOnboarding() {
             <p className="text-sm text-gray-600">{institution.name}</p>
             <p className="text-xs text-gray-500">{institution.acronym}</p>
           </div>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={cancelOnboarding}
+            disabled={canceling}
+          >
+            {canceling ? 'Cancelling...' : 'Cancel Onboarding'}
+          </Button>
         </div>
       </header>
 
