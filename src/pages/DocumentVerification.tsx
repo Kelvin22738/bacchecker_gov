@@ -63,7 +63,7 @@ export function DocumentVerification() {
       // For now, use mock data since database tables don't exist yet
       const mockRequests: VerificationRequest[] = [
         {
-          id: 'req-1',
+          id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
           request_number: 'VER-12345678',
           requesting_institution_id: user?.institutionId || 'ug',
           target_institution_id: 'knust',
@@ -83,7 +83,7 @@ export function DocumentVerification() {
           updated_at: new Date().toISOString()
         },
         {
-          id: 'req-2',
+          id: 'b2c3d4e5-f6g7-8901-2345-678901bcdefg',
           request_number: 'VER-87654321',
           requesting_institution_id: user?.institutionId || 'ug',
           target_institution_id: 'ug',
@@ -145,7 +145,7 @@ export function DocumentVerification() {
       
       // For now, create mock request since database doesn't exist
       const newRequest: VerificationRequest = {
-        id: `req-${Date.now()}`,
+        id: crypto.randomUUID(),
         request_number: requestNumber,
         requesting_institution_id: user?.institutionId,
         target_institution_id: formData.target_institution,
