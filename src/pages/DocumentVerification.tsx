@@ -51,8 +51,6 @@ export function DocumentVerification() {
   const isGTECAdmin = user?.role === 'gtec_admin';
   const isTertiaryUser = user?.role === 'tertiary_institution_user';
 
-  // Demo workflow explanation
-  const [showWorkflowGuide, setShowWorkflowGuide] = useState(false);
   useEffect(() => {
     loadData();
   }, [user]);
@@ -270,15 +268,11 @@ export function DocumentVerification() {
           </p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setShowWorkflowGuide(true)}>
-            <Eye className="h-4 w-4 mr-2" />
-            How It Works
-          </Button>
           <Button variant="outline" onClick={loadData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          {(isTertiaryUser || !isGTECAdmin) && (
+          {!isGTECAdmin && (
             <Button onClick={() => setShowNewRequestModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Verification Request
@@ -309,33 +303,7 @@ export function DocumentVerification() {
 
       {/* Verification Requests Tab */}
       {activeTab === 'requests' && (
-        <>
-          {/* Workflow Status Banner */}
-          <Card className="bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-blue-900">Live Verification Workflow</h3>
-                  <p className="text-blue-700">
-                    Complete 4-phase verification process: Initial Processing → Institution Verification → Document Authentication → GTEC Quality Assurance
-                  </p>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-900">{verificationRequests.filter(r => r.overall_status === 'completed').length}</div>
-                    <div className="text-sm text-green-700">Completed</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-900">{verificationRequests.filter(r => ['processing', 'institution_verified', 'document_authenticated'].includes(r.overall_status)).length}</div>
-                    <div className="text-sm text-blue-700">In Progress</div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-             isTertiaryUser={isTertiaryInstitution}
           {/* Requests List */}
           <div className="lg:col-span-1">
             <Card>
@@ -396,6 +364,7 @@ export function DocumentVerification() {
                 onUploadDocument={() => setShowUploadModal(true)}
                 processing={processing}
                 isGTECAdmin={isGTECAdmin}
+                isTertiaryUser={isTertiaryUser}
               />
             ) : (
               <Card>
@@ -408,13 +377,8 @@ export function DocumentVerification() {
             )}
           </div>
         </div>
-        </>
       )}
 
-      {/* Workflow Guide Modal */}
-      {showWorkflowGuide && (
-        <WorkflowGuideModal onClose={() => setShowWorkflowGuide(false)} />
-      )}
       {/* New Verification Request Modal */}
       {showNewRequestModal && (
         <NewVerificationRequestModal
@@ -884,6 +848,191 @@ function UploadDocumentModal({
             </Button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// Pending Reports Component
+function PendingReports({ 
+  requests, 
+  onGenerateReport, 
+  isGTECAdmin 
+}: {
+  requests: VerificationRequest[];
+  onGenerateReport: (requestId: string, reportType: 'standard' | 'detailed' | 'summary') => void;
+  isGTECAdmin: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Pending Report Generation ({requests.length})</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {requests.map((request) => (
+            <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">{request.request_number}</p>
+                <p className="text-sm text-gray-600">{request.student_name} • {request.program_name}</p>
+                <p className="text-xs text-gray-500">
+                  Completed: {request.completed_at ? new Date(request.completed_at).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+              <div className="flex space-x-2">
+                {isGTECAdmin && (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => onGenerateReport(request.id, 'summary')}
+                    >
+                      Summary
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => onGenerateReport(request.id, 'standard')}
+                    >
+                      Standard
+                    </Button>
+                    <Button 
+                      size="sm"
+                      onClick={() => onGenerateReport(request.id, 'detailed')}
+                    >
+                      Detailed
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+          
+          {requests.length === 0 && (
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No pending reports</p>
+              <p className="text-sm text-gray-400">All completed verifications have reports generated</p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Workflow Guide Modal
+function WorkflowGuideModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold text-gray-900">GTEC Verification Workflow</h3>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <div className="space-y-6">
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 className="font-semibold text-blue-900 mb-2">Complete End-to-End Verification Process</h4>
+            <p className="text-blue-700">
+              This system demonstrates the complete GTEC document verification workflow from initial submission 
+              to final report delivery. Each phase has specific validation criteria and can be processed live.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="border border-green-200 rounded-lg p-4 bg-green-50">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                  <h5 className="font-semibold text-green-900">Initial Processing</h5>
+                </div>
+                <p className="text-green-700 text-sm">
+                  • Document upload and format validation<br/>
+                  • Completeness assessment<br/>
+                  • Automatic flagging system<br/>
+                  • Pass threshold: 70%
+                </p>
+              </div>
+
+              <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                  <h5 className="font-semibold text-blue-900">Institution Verification</h5>
+                </div>
+                <p className="text-blue-700 text-sm">
+                  • 4-Point Check System<br/>
+                  • Accreditation status validation<br/>
+                  • Program authorization matching<br/>
+                  • Pass threshold: 75% → Forward to Institution
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="border border-purple-200 rounded-lg p-4 bg-purple-50">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                  <h5 className="font-semibold text-purple-900">Document Authentication</h5>
+                </div>
+                <p className="text-purple-700 text-sm">
+                  • Institution processes the request<br/>
+                  • Grade and date validation<br/>
+                  • Academic record verification<br/>
+                  • Pass threshold: 80%
+                </p>
+              </div>
+
+              <div className="border border-orange-200 rounded-lg p-4 bg-orange-50">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-6 h-6 bg-orange-600 text-white rounded-full flex items-center justify-center text-sm font-bold">4</div>
+                  <h5 className="font-semibold text-orange-900">GTEC Quality Assurance</h5>
+                </div>
+                <p className="text-orange-700 text-sm">
+                  • Fraud registry cross-checking<br/>
+                  • Security feature validation<br/>
+                  • Final manual review<br/>
+                  • Pass threshold: 85% → Generate Report
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-semibold text-gray-900 mb-3">Demo Instructions</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <h5 className="font-medium text-gray-900 mb-2">For GTEC Admins:</h5>
+                <ul className="space-y-1 text-gray-700">
+                  <li>• Process Phase 1, 2, and 4</li>
+                  <li>• Monitor all verification requests</li>
+                  <li>• Generate final reports</li>
+                  <li>• Manage fraud investigations</li>
+                </ul>
+              </div>
+              <div>
+                <h5 className="font-medium text-gray-900 mb-2">For Institution Users:</h5>
+                <ul className="space-y-1 text-gray-700">
+                  <li>• Submit verification requests</li>
+                  <li>• Upload supporting documents</li>
+                  <li>• Process Phase 3 (when forwarded)</li>
+                  <li>• Track verification status</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <h4 className="font-semibold text-green-900 mb-2">Live Demo Ready</h4>
+            <p className="text-green-700 text-sm">
+              The system is fully functional and can process verification requests end-to-end. 
+              Create a new request, upload documents, and watch it progress through all 4 phases 
+              with real scoring and validation at each step.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
