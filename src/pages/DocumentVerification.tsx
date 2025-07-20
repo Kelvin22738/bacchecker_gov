@@ -51,6 +51,8 @@ export function DocumentVerification() {
   const isGTECAdmin = user?.role === 'gtec_admin';
   const isTertiaryUser = user?.role === 'tertiary_institution_user';
 
+  // Demo workflow explanation
+  const [showWorkflowGuide, setShowWorkflowGuide] = useState(false);
   useEffect(() => {
     loadData();
   }, [user]);
@@ -268,11 +270,15 @@ export function DocumentVerification() {
           </p>
         </div>
         <div className="flex space-x-2">
+          <Button variant="outline" onClick={() => setShowWorkflowGuide(true)}>
+            <Eye className="h-4 w-4 mr-2" />
+            How It Works
+          </Button>
           <Button variant="outline" onClick={loadData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          {!isGTECAdmin && (
+          {(isTertiaryUser || !isGTECAdmin) && (
             <Button onClick={() => setShowNewRequestModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Verification Request
@@ -303,6 +309,31 @@ export function DocumentVerification() {
 
       {/* Verification Requests Tab */}
       {activeTab === 'requests' && (
+        <>
+          {/* Workflow Status Banner */}
+          <Card className="bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900">Live Verification Workflow</h3>
+                  <p className="text-blue-700">
+                    Complete 4-phase verification process: Initial Processing → Institution Verification → Document Authentication → GTEC Quality Assurance
+                  </p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-900">{verificationRequests.filter(r => r.overall_status === 'completed').length}</div>
+                    <div className="text-sm text-green-700">Completed</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-900">{verificationRequests.filter(r => ['processing', 'institution_verified', 'document_authenticated'].includes(r.overall_status)).length}</div>
+                    <div className="text-sm text-blue-700">In Progress</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
              isTertiaryUser={isTertiaryInstitution}
           {/* Requests List */}
@@ -377,8 +408,13 @@ export function DocumentVerification() {
             )}
           </div>
         </div>
+        </>
       )}
 
+      {/* Workflow Guide Modal */}
+      {showWorkflowGuide && (
+        <WorkflowGuideModal onClose={() => setShowWorkflowGuide(false)} />
+      )}
       {/* New Verification Request Modal */}
       {showNewRequestModal && (
         <NewVerificationRequestModal

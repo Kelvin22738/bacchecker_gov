@@ -595,14 +595,104 @@ export const workflowEngine = {
       matching_programs: programs || []
     };
   },
+  async validateGrades(requestId: string) {
+    // Simulate grade validation
+    const gradeScore = Math.floor(Math.random() * 20) + 80; // 80-100 range
+    return {
+      score: gradeScore,
+      valid_grades: gradeScore >= 85,
+      grade_consistency: gradeScore >= 90 ? 'Excellent' : 'Good',
+      anomalies_detected: gradeScore < 85 ? ['Grade pattern inconsistency'] : []
+    };
+  },
 
+  async checkDateConsistency(requestId: string) {
+    // Simulate date consistency check
+    const dateScore = Math.floor(Math.random() * 15) + 85; // 85-100 range
+    return {
+      score: dateScore,
+      dates_consistent: dateScore >= 90,
+      enrollment_dates: 'Valid',
+      graduation_dates: 'Valid'
+    };
+  },
   async checkComplianceHistory(institutionId: string) {
+  async verifyProgramCompletion(requestId: string) {
+    // Simulate program completion verification
+    const completionScore = Math.floor(Math.random() * 20) + 80; // 80-100 range
+    return {
+      score: completionScore,
+      program_completed: completionScore >= 85,
+      requirements_met: completionScore >= 90,
+      credit_hours: 'Sufficient'
+    };
+  },
     // Simulate compliance history check
+  async crossReferenceRecords(requestId: string) {
+    // Simulate academic record cross-referencing
+    const recordScore = Math.floor(Math.random() * 25) + 75; // 75-100 range
+    return {
+      score: recordScore,
+      records_match: recordScore >= 80,
+      database_consistency: recordScore >= 85 ? 'High' : 'Medium',
+      discrepancies: recordScore < 80 ? ['Minor data inconsistency'] : []
+    };
+  },
     const complianceScore = Math.floor(Math.random() * 30) + 70; // 70-100 range
+  async performFraudCheck(requestId: string) {
+    // Check against fraud registry
+    const { data: request } = await supabase
+      .from('verification_requests')
+      .select('student_name, target_institution_id')
+      .eq('id', requestId)
+      .single();
+    return {
+    if (!request) return { score: 0, fraud_detected: true };
+      score: complianceScore,
+    // Check for fraud entries
+    const fraudEntries = await fraudRegistryAPI.checkEntity('student', request.student_name);
+    const institutionFraud = await fraudRegistryAPI.checkEntity('institution', request.target_institution_id);
+      compliance_rating: complianceScore >= 90 ? 'Excellent' : complianceScore >= 80 ? 'Good' : 'Satisfactory',
+    const fraudDetected = fraudEntries.length > 0 || institutionFraud.length > 0;
+    
+    return {
+      score: fraudDetected ? 0 : 100,
+      fraud_detected: fraudDetected,
+      fraud_entries: fraudEntries.length,
+      institution_flags: institutionFraud.length
+    };
+  },
+      recent_violations: complianceScore < 80 ? ['Minor reporting delay in Q2 2024'] : []
+  async validateSecurityFeatures(requestId: string) {
+    // Simulate security feature validation
+    const securityScore = Math.floor(Math.random() * 20) + 80; // 80-100 range
+    return {
+      score: securityScore,
+      security_features_valid: securityScore >= 85,
+      digital_signatures: 'Valid',
+      document_integrity: securityScore >= 90 ? 'Excellent' : 'Good'
+    };
+  },
+    };
+  async performFinalReview(requestId: string) {
+    // Simulate final manual review
+    const reviewScore = Math.floor(Math.random() * 15) + 85; // 85-100 range
+    return {
+      score: reviewScore,
+      manual_review_passed: reviewScore >= 90,
+      reviewer_confidence: reviewScore >= 95 ? 'Very High' : 'High',
+      additional_checks: 'Completed'
+    };
+  },
+  },
+  async checkFinalCompliance(requestId: string) {
+    // Simulate final compliance check
+    const complianceScore = Math.floor(Math.random() * 10) + 90; // 90-100 range
     return {
       score: complianceScore,
-      compliance_rating: complianceScore >= 90 ? 'Excellent' : complianceScore >= 80 ? 'Good' : 'Satisfactory',
-      recent_violations: complianceScore < 80 ? ['Minor reporting delay in Q2 2024'] : []
+      compliance_met: complianceScore >= 95,
+      regulatory_requirements: 'Met',
+      audit_trail: 'Complete'
     };
   }
 };

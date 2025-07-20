@@ -514,6 +514,15 @@ export function InstitutionsManagement() {
                 </div>
               </div>
             </div>
+            
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="font-semibold text-blue-900 mb-2">Verification Workflow Integration</h4>
+              <p className="text-blue-700 text-sm">
+                These institutions are integrated into the GTEC verification workflow. When verification requests 
+                are submitted, they are automatically validated against this registry and forwarded to the appropriate 
+                institution for processing.
+              </p>
+            </div>
           </div>
         </div>
       )}
