@@ -95,6 +95,15 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
     }
   ];
 
+  // Filter navigation items based on user role
+  const filteredNavigationItems = navigationItems.filter(item => {
+    // Only show Fraud Prevention to GTEC admins
+    if (item.href === '/admin/fraud-prevention') {
+      return isGTECAdmin;
+    }
+    return true;
+  });
+
   const toggleSidebar = () => {
     dispatch({ type: 'TOGGLE_SIDEBAR' });
   };
@@ -175,7 +184,7 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto min-h-0">
-            {navigationItems.map((item) => (
+            {filteredNavigationItems.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.href}
