@@ -53,21 +53,23 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       href: '/admin/requests',
       icon: FileText
     },
-    {
-      name: 'Document Verification',
-      href: '/verification',
-      icon: Shield
-    },
-    {
-      name: 'Fraud Prevention',
-      href: '/admin/fraud-prevention',
-      icon: AlertTriangle
-    },
-    {
-      name: 'Verification Reports',
-      href: '/admin/verification-reports',
-      icon: FileCheck
-    },
+    ...(isGTECAdmin ? [
+      {
+        name: 'Document Verification',
+        href: '/verification',
+        icon: Shield
+      },
+      {
+        name: 'Fraud Prevention',
+        href: '/fraud-prevention',
+        icon: AlertTriangle
+      },
+      {
+        name: 'Verification Reports',
+        href: '/verification-reports',
+        icon: FileCheck
+      }
+    ] : []),
     {
       name: 'System Analytics',
       href: '/admin/analytics',

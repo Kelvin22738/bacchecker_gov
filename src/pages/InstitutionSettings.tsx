@@ -903,67 +903,191 @@ export function InstitutionSettings() {
       )}
 
       {/* System Settings Tab - For Admins Only */}
-      {activeTab === 'system' && (isGTECAdmin || isBacCheckerAdmin) && (
+      {activeTab === 'system' && (isGTECAdmin || isBacCheckerAdmin || isInstitutionAdmin) && (
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>System Configuration</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="space-y-6">
+              {/* GTEC Specific Settings */}
+              {isGTECAdmin && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">System Maintenance Mode</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option>Disabled</option>
-                    <option>Enabled</option>
-                    <option>Scheduled</option>
-                  </select>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">GTEC Platform Settings</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Default Verification Processing Time</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="5">5 business days</option>
+                        <option value="7">7 business days</option>
+                        <option value="10">10 business days</option>
+                        <option value="14">14 business days</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Auto-approval Threshold</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="low">Low Risk Only</option>
+                        <option value="medium">Low & Medium Risk</option>
+                        <option value="none">Manual Review All</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Enable Cross-Institution Verification</span>
+                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Allow Institution Self-Registration</span>
+                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Require Document Encryption</span>
+                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    </div>
+                  </div>
                 </div>
+              )}
+
+              {/* BacChecker Specific Settings */}
+              {isBacCheckerAdmin && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Global Rate Limit (requests/hour)</label>
-                  <input 
-                    type="number" 
-                    defaultValue="10000"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                  />
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">BacChecker Platform Settings</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Global Processing Time</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        <option value="3">3 business days</option>
+                        <option value="5">5 business days</option>
+                        <option value="7">7 business days</option>
+                        <option value="10">10 business days</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">System-wide Auto-approval</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        <option value="strict">Strict Review</option>
+                        <option value="moderate">Moderate Review</option>
+                        <option value="lenient">Lenient Review</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Enable Multi-Institution Workflows</span>
+                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Global Template Sharing</span>
+                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Cross-Platform Integration</span>
+                      <input type="checkbox" className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                    </div>
+                  </div>
                 </div>
+              )}
+
+              {/* Institution Admin Settings */}
+              {isInstitutionAdmin && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Session Timeout (minutes)</label>
-                  <input 
-                    type="number" 
-                    defaultValue="30"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                  />
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Institution System Settings</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Request Processing Time</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        <option value="1">1 business day</option>
+                        <option value="3">3 business days</option>
+                        <option value="5">5 business days</option>
+                        <option value="7">7 business days</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Quality Control Level</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        <option value="standard">Standard Review</option>
+                        <option value="enhanced">Enhanced Review</option>
+                        <option value="comprehensive">Comprehensive Review</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Enable Public Portal</span>
+                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Allow Online Payments</span>
+                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Enable SMS Notifications</span>
+                      <input type="checkbox" className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password Expiry (days)</label>
-                  <input 
-                    type="number" 
-                    defaultValue="90"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                  />
+              )}
+
+              {/* General System Settings */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">General Configuration</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">System Maintenance Mode</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      <option>Disabled</option>
+                      <option>Enabled</option>
+                      <option>Scheduled</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Global Rate Limit (requests/hour)</label>
+                    <input 
+                      type="number" 
+                      defaultValue="10000"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Session Timeout (minutes)</label>
+                    <input 
+                      type="number" 
+                      defaultValue="30"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password Expiry (days)</label>
+                    <input 
+                      type="number" 
+                      defaultValue="90"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Enable Debug Mode</span>
-                  <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Log All API Requests</span>
-                  <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Enable Performance Monitoring</span>
-                  <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Require Two-Factor Authentication</span>
-                  <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Enable IP Whitelisting</span>
-                  <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Enable Debug Mode</span>
+                    <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Log All API Requests</span>
+                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Enable Performance Monitoring</span>
+                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Require Two-Factor Authentication</span>
+                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Enable IP Whitelisting</span>
+                    <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  </div>
                 </div>
               </div>
             </CardContent>

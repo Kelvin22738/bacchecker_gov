@@ -90,9 +90,13 @@ function AdminRoutes() {
         />
         <Route path="/requests" element={<RequestMonitoring />} />
         <Route path="/analytics" element={<SystemAnalytics />} />
-        <Route path="/verification" element={<DocumentVerification />} />
-        <Route path="/fraud-prevention" element={<FraudPrevention />} />
-        <Route path="/verification-reports" element={<VerificationReports />} />
+        {user?.role === 'gtec_admin' && (
+          <>
+            <Route path="/verification" element={<DocumentVerification />} />
+            <Route path="/fraud-prevention" element={<FraudPrevention />} />
+            <Route path="/verification-reports" element={<VerificationReports />} />
+          </>
+        )}
         <Route path="/templates" element={
           user?.role === 'bacchecker_admin'
             ? <GlobalTemplatesBaccheckerAdmin />
