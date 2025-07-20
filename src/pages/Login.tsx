@@ -107,8 +107,7 @@ export function Login() {
               <div className="mb-8">
                 <h2 className="text-2xl font-semibold mb-4">Secure. Fast. Reliable.</h2>
                 <p className="text-blue-100 leading-relaxed">
-                  Ghana's premier platform for document verification and credential authentication. 
-                  Join thousands of institutions in our secure verification network.
+                  Ghana's premier platform for document verification and credential authentication.
                 </p>
               </div>
 
