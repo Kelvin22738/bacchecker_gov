@@ -91,13 +91,9 @@ function AdminRoutes() {
         />
         <Route path="/requests" element={<RequestMonitoring />} />
         <Route path="/analytics" element={<SystemAnalytics />} />
-        {user?.role === 'gtec_admin' && (
-          <>
-            <Route path="/verification" element={<DocumentVerification />} />
-            <Route path="/fraud-prevention" element={<FraudPrevention />} />
-            <Route path="/verification-reports" element={<VerificationReports />} />
-          </>
-        )}
+        <Route path="/verification" element={<DocumentVerification />} />
+        <Route path="/fraud-prevention" element={<FraudPrevention />} />
+        <Route path="/verification-reports" element={<VerificationReports />} />
         <Route path="/templates" element={
           user?.role === 'bacchecker_admin'
             ? <GlobalTemplatesBaccheckerAdmin />
@@ -264,27 +260,6 @@ function App() {
             <Route path="/settings" element={
               <ProtectedRoute allowedRoles={['bacchecker_admin', 'gtec_admin', 'tertiary_institution_user', 'institution_admin']}>
                 <InstitutionSettings />
-              </ProtectedRoute>
-            } />
-            <Route path="/verification" element={
-              <ProtectedRoute allowedRoles={['gtec_admin', 'tertiary_institution_user']}>
-                <Layout>
-                  <DocumentVerification />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/fraud-prevention" element={
-              <ProtectedRoute allowedRoles={['gtec_admin']}>
-                <Layout>
-                  <FraudPrevention />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/verification-reports" element={
-              <ProtectedRoute allowedRoles={['gtec_admin', 'tertiary_institution_user']}>
-                <Layout>
-                  <VerificationReports />
-                </Layout>
               </ProtectedRoute>
             } />
             <Route path="/*" element={<AppContent />} />
