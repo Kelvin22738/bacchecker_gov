@@ -89,13 +89,26 @@ export const tertiaryInstitutionAPI = {
 
   // Get institution by onboarding token
   async getByToken(token: string) {
+    if (!token || token.trim() === '') {
+      throw new Error('Invalid token provided');
+    }
+    
     const { data, error } = await supabase
       .from('tertiary_institutions')
       .select('*')
       .eq('onboarding_token', token)
+      .eq('onboarding_status', 'pending')
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching institution by token:', error);
+      throw new Error('Institution not found or onboarding link has expired');
+    }
+    
+    if (!data) {
+      throw new Error('Institution not found');
+    }
+    
     return data as TertiaryInstitution;
   },
 
@@ -137,7 +150,8 @@ export const tertiaryInstitutionAPI = {
       .from('tertiary_institutions')
       .update({
         onboarding_status: 'completed',
-        onboarded_at: new Date().toISOString()
+        onboarded_at: new Date().toISOString(),
+        onboarding_token: null // Clear the token after completion
       })
       .eq('id', id)
       .select()

@@ -115,7 +115,7 @@ export function TertiaryOnboarding() {
   });
 
   useEffect(() => {
-    if (token && token !== 'null' && token !== 'undefined') {
+    if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
       loadInstitution();
     } else {
       setLoading(false);
@@ -126,7 +126,11 @@ export function TertiaryOnboarding() {
   const loadInstitution = async () => {
     try {
       setLoading(true);
-      const data = await tertiaryInstitutionAPI.getByToken(token!);
+      if (!token) {
+        throw new Error('No onboarding token provided');
+      }
+      
+      const data = await tertiaryInstitutionAPI.getByToken(token);
       setInstitution(data);
       setFormData({
         name: data.name || '',
@@ -156,7 +160,7 @@ export function TertiaryOnboarding() {
       }
     } catch (error) {
       console.error('Error loading institution:', error);
-      alert('Invalid or expired onboarding link');
+      alert('Invalid or expired onboarding link. Please contact GTEC for a new invitation.');
       navigate('/');
     } finally {
       setLoading(false);
@@ -214,7 +218,7 @@ export function TertiaryOnboarding() {
       await saveCurrentStep();
       await tertiaryInstitutionAPI.completeOnboarding(institution.id);
       
-      alert('Onboarding completed successfully! Welcome to BacChecker.');
+      alert('Onboarding completed successfully! Welcome to the GTEC Verification Platform.');
       navigate('/user');
     } catch (error) {
       console.error('Error completing onboarding:', error);
@@ -227,21 +231,20 @@ export function TertiaryOnboarding() {
   const cancelOnboarding = async () => {
     if (!institution) return;
 
-    if (!confirm('Are you sure you want to cancel the onboarding process? This will remove your institution from the pending list.')) {
+    if (!confirm('Are you sure you want to cancel the onboarding process? You will need to contact GTEC for a new invitation.')) {
       return;
     }
 
     setCanceling(true);
     try {
-      // Delete the institution record to remove it from pending
-      const { error } = await supabase
-        .from('tertiary_institutions')
-        .delete()
-        .eq('id', institution.id);
+      // Update status to cancelled instead of deleting
+      const { error } = await tertiaryInstitutionAPI.update(institution.id, {
+        onboarding_status: 'cancelled'
+      });
 
       if (error) throw error;
 
-      alert('Onboarding has been cancelled. Your institution has been removed from the system.');
+      alert('Onboarding has been cancelled. Please contact GTEC if you need to restart the process.');
       navigate('/');
     } catch (error) {
       console.error('Error cancelling onboarding:', error);

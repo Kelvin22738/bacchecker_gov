@@ -167,7 +167,15 @@ export function BacCheckerInstitutions() {
   ];
 
   const handleSendOnboardingEmail = (institutionData: any) => {
-    alert(`BacChecker onboarding email sent to ${institutionData.email}. The institution will receive the full setup wizard with BacChecker branding.`);
+    const baseUrl = import.meta.env.PROD 
+      ? window.location.origin
+      : window.location.origin;
+    
+    // Generate a mock onboarding token for demo
+    const mockToken = `onboard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const onboardingUrl = `${baseUrl}/onboarding/${mockToken}`;
+    
+    alert(`BacChecker onboarding email sent to ${institutionData.email}!\n\nOnboarding URL: ${onboardingUrl}\n\nThe institution will receive the full setup wizard with BacChecker branding.`);
     setShowAddModal(false);
   };
 

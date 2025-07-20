@@ -84,7 +84,10 @@ export function InstitutionsManagement() {
       });
 
       // Generate onboarding URL
-      const onboardingUrl = `${window.location.origin}/onboarding/${newInstitution.onboarding_token}`;
+      const baseUrl = import.meta.env.PROD 
+        ? 'https://your-deployed-app.netlify.app' // This will be updated with actual URL after deployment
+        : window.location.origin;
+      const onboardingUrl = `${baseUrl}/onboarding/${newInstitution.onboarding_token}`;
       
       // In a real app, this would send an actual email
       alert(`GTEC onboarding email sent to ${formData.email}!\n\nOnboarding URL: ${onboardingUrl}\n\nThe institution will receive simplified setup instructions with GTEC branding and pre-configured settings.`);
@@ -161,7 +164,10 @@ export function InstitutionsManagement() {
                         size="sm" 
                         variant="outline"
                         onClick={() => {
-                          const url = `${window.location.origin}/onboarding/${institution.onboarding_token}`;
+                          const baseUrl = import.meta.env.PROD 
+                            ? window.location.origin // Use current origin in production
+                            : window.location.origin;
+                          const url = `${baseUrl}/onboarding/${institution.onboarding_token}`;
                           navigator.clipboard.writeText(url);
                           alert('Onboarding link copied to clipboard!');
                         }}
@@ -171,7 +177,10 @@ export function InstitutionsManagement() {
                       </Button>
                     )}
                     <Button size="sm" onClick={() => {
-                      const url = `${window.location.origin}/onboarding/${institution.onboarding_token}`;
+                      const baseUrl = import.meta.env.PROD 
+                        ? window.location.origin
+                        : window.location.origin;
+                      const url = `${baseUrl}/onboarding/${institution.onboarding_token}`;
                       window.open(url, '_blank');
                     }}>
                       <Eye className="h-4 w-4 mr-1" />
