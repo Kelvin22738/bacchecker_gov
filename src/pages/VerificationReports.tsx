@@ -44,38 +44,66 @@ export function VerificationReports() {
     try {
       setLoading(true);
       
-      // Load verification requests
-      if (isGTECAdmin) {
-        const requestsData = await verificationRequestsAPI.getAll();
-        setRequests(requestsData);
-      } else if (user?.institutionId) {
-        const requestsData = await verificationRequestsAPI.getByInstitution(user.institutionId);
-        setRequests(requestsData);
-      }
+      // Mock verification requests
+      const mockRequests: VerificationRequest[] = [
+        {
+          id: 'req-1',
+          request_number: 'VER-12345678',
+          requesting_institution_id: user?.institutionId || 'ug',
+          target_institution_id: 'knust',
+          student_name: 'John Doe',
+          student_id: 'UG123456',
+          program_name: 'Bachelor of Science in Computer Science',
+          graduation_date: '2023-06-15',
+          verification_type: 'academic_certificate',
+          current_phase: 4,
+          overall_status: 'completed',
+          priority_level: 'normal',
+          verification_score: 85,
+          fraud_flags: [],
+          metadata: { purpose: 'Employment verification' },
+          submitted_at: new Date(Date.now() - 172800000).toISOString(),
+          completed_at: new Date().toISOString(),
+          created_at: new Date(Date.now() - 172800000).toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
+      setRequests(mockRequests);
 
-      // Load reports (simulated for now)
-      const mockReports = requests
-        .filter(r => r.overall_status === 'completed')
-        .map(r => ({
-          id: `report-${r.id}`,
-          verification_request_id: r.id,
-          report_type: 'standard' as const,
+      // Mock reports
+      const mockReports: VerificationReport[] = [
+        {
+          id: 'report-1',
+          verification_request_id: 'req-1',
+          report_type: 'standard',
           report_data: {
             request_details: {
-              request_number: r.request_number,
-              student_name: r.student_name,
-              program_name: r.program_name
+              request_number: 'VER-12345678',
+              student_name: 'John Doe',
+              program_name: 'Bachelor of Science in Computer Science',
+              graduation_date: '2023-06-15',
+              requesting_institution: { name: 'University of Ghana', acronym: 'UG' },
+              target_institution: { name: 'KNUST', acronym: 'KNUST' }
             },
             verification_summary: {
-              overall_status: r.overall_status,
-              verification_score: r.verification_score
-            }
+              overall_status: 'completed',
+              verification_score: 85,
+              phases_completed: 4,
+              processing_time: '2 days, 4 hours'
+            },
+            phase_results: [
+              { phase_number: 1, phase_name: 'Initial Processing', phase_status: 'completed' },
+              { phase_number: 2, phase_name: 'Institution Verification', phase_status: 'completed' },
+              { phase_number: 3, phase_name: 'Document Authentication', phase_status: 'completed' },
+              { phase_number: 4, phase_name: 'Quality Assurance', phase_status: 'completed' }
+            ]
           },
-          verification_outcome: r.verification_score >= 80 ? 'verified' as const : 'not_verified' as const,
-          confidence_score: r.verification_score,
-          generated_at: r.completed_at || r.created_at,
-          created_at: r.completed_at || r.created_at
-        }));
+          verification_outcome: 'verified',
+          confidence_score: 85,
+          generated_at: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        }
+      ];
       
       setReports(mockReports);
     } catch (error) {

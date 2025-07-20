@@ -23,21 +23,41 @@ export function FraudPrevention() {
 
   useEffect(() => {
     if (isGTECAdmin) {
-      loadFraudEntries();
-    }
-  }, [isGTECAdmin]);
-
-  const loadFraudEntries = async () => {
-    try {
-      setLoading(true);
-      const data = await fraudRegistryAPI.getAll();
-      setFraudEntries(data);
-    } catch (error) {
-      console.error('Error loading fraud entries:', error);
-    } finally {
+      // Load mock fraud entries for demo
+      const mockEntries: FraudRegistryEntry[] = [
+        {
+          id: 'fraud-1',
+          entity_type: 'student',
+          entity_identifier: 'John Doe',
+          fraud_type: 'Document Forgery',
+          severity_level: 'high',
+          description: 'Suspected forged academic certificate submitted for verification',
+          evidence: { document_id: 'DOC123', anomalies: ['Inconsistent fonts', 'Invalid seal'] },
+          investigation_status: 'investigating',
+          flagged_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 'fraud-2',
+          entity_type: 'institution',
+          entity_identifier: 'Fake University College',
+          fraud_type: 'Unaccredited Institution',
+          severity_level: 'critical',
+          description: 'Institution claiming accreditation without proper authorization',
+          evidence: { website: 'fake-uni.com', claims: 'False accreditation' },
+          investigation_status: 'confirmed',
+          flagged_at: new Date(Date.now() - 86400000).toISOString(),
+          resolved_at: new Date().toISOString(),
+          resolution_notes: 'Institution confirmed as fraudulent. Added to blacklist.',
+          created_at: new Date(Date.now() - 86400000).toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
+      setFraudEntries(mockEntries);
       setLoading(false);
     }
-  };
+  }, [isGTECAdmin]);
 
   const handleAddFraudEntry = async (formData: any) => {
     try {
