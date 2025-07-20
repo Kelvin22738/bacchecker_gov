@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../context/AuthContext';
 import { Shield, AlertTriangle, Search, Filter, Eye, Plus, Download, CheckCircle, XCircle, Clock, User, Building2, FileText, TrendingUp, X, Flag, Navigation as Investigation } from 'lucide-react';
-import { fraudRegistryAPI, FraudRegistryEntry } from '../utils/verificationAPI';
+import { fraudRegistryAPI, FraudRegistryEntry } from '../utils/verificationProcessingAPI';
 
 export function FraudPrevention() {
   const { state } = useAuth();

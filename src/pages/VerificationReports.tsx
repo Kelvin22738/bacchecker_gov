@@ -21,7 +21,7 @@ import {
   Search,
   RefreshCw
 } from 'lucide-react';
-import { verificationReportsAPI, verificationRequestsAPI, VerificationReport, VerificationRequest } from '../utils/verificationAPI';
+import { verificationReportsAPI, verificationRequestsAPI, VerificationReport, VerificationRequest } from '../utils/verificationProcessingAPI';
 
 function getOutcomeBadge(outcome: string) {
   switch (outcome) {

@@ -1,233 +1,168 @@
-import React, { useState } from 'react';
+// src/pages/admin/RequestMonitoring.tsx - REPLACE ENTIRE FILE
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
+import { useAuth } from '../../context/AuthContext';
 import {
-  FileText,
   Search,
   Filter,
-  Eye,
   Download,
-  Clock,
-  User,
+  Eye,
   Calendar,
-  DollarSign,
+  Building2,
+  FileText,
+  Users,
+  Clock,
+  TrendingUp,
+  AlertCircle,
   CheckCircle,
   XCircle,
-  AlertCircle,
-  Building2,
-  Shield,
-  Scale,
-  GraduationCap,
-  Send,
-  MoreHorizontal,
-  X,
-  Mail,
-  Phone
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
-import { 
-  masterInstitutions, 
-  masterRequests, 
-  masterServices, 
-  getInstitutionById,
-  getServiceById,
-  MasterRequest
-} from '../../utils/masterData';
+import { VerificationWorkflowAPI } from '../../utils/verificationWorkflowAPI';
+import { VerificationRequest } from '../../types/verification';
 
 export function RequestMonitoring() {
+  const { state } = useAuth();
+  const { user } = state;
+  
+  const [requests, setRequests] = useState<VerificationRequest[]>([]);
+  const [selectedInstitution, setSelectedInstitution] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [institutionFilter, setInstitutionFilter] = useState<string>('all');
-  const [showSendRequestModal, setShowSendRequestModal] = useState(false);
-  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
-  const [showRequestDetails, setShowRequestDetails] = useState(false);
-  const [selectedRequestData, setSelectedRequestData] = useState<MasterRequest | null>(null);
 
-  // Load public requests from localStorage
-  React.useEffect(() => {
-    const publicRequests = localStorage.getItem('public_verification_requests');
-    if (publicRequests) {
-      try {
-        const parsed = JSON.parse(publicRequests);
-        // Convert public requests to master request format and add to existing requests
-        const convertedRequests = parsed.map((req: any) => ({
-          id: req.id,
-          requestId: req.requestNumber,
-          applicant: req.applicantName,
-          institution_id: getInstitutionId(req.targetInstitution),
-          service_id: getServiceId(req.verificationType),
-          submittedDate: req.submittedAt,
-          status: convertStatus(req.status),
-          risk: req.currentPhase < 2 ? 'On Time' : req.currentPhase < 4 ? 'At Risk' : null,
-          priority: 'Normal',
-          paymentStatus: 'Paid',
-          paymentAmount: getServiceFee(req.verificationType),
-          requesterInfo: {
-            name: req.applicantName,
-            email: req.applicantEmail,
-            phone: req.applicantPhone,
-            address: 'Public Portal',
-            idNumber: req.idNumber
-          },
-          processingHistory: [
-            {
-              id: `hist-${req.id}`,
-              stage: 'Public Submission',
-              action: 'Request submitted via public portal',
-              performedBy: 'Public Portal System',
-              performedAt: req.submittedAt,
-              comments: `Purpose: ${req.purpose}`,
-              duration: 0
-            }
-          ]
-        }));
-        
-        // Add to existing master requests
-        masterRequests.push(...convertedRequests);
-      } catch (error) {
-        console.error('Error loading public requests:', error);
-      }
+  const isGTECAdmin = user?.role === 'gtec_admin';
+  const isBacCheckerAdmin = user?.role === 'bacchecker_admin';
+
+  // Institution options for filtering
+  const institutions = [
+    { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', name: 'University of Ghana' },
+    { id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', name: 'KNUST' },
+    { id: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', name: 'Ghana Police Service' },
+    { id: 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15', name: 'High Court of Ghana'
     }
-  }, []);
+  ];
 
-  const getInstitutionId = (institutionName: string) => {
-    const mapping: { [key: string]: string } = {
-      'University of Ghana': 'ug',
-      'KNUST': 'knust',
-      'University of Cape Coast': 'ucc',
-      'Ghana Police Service': 'gps',
-      'High Court of Ghana': 'hcg',
-      'Ministry of Education': 'moe'
-    };
-    return mapping[institutionName] || 'unknown';
+  // Load all requests
+  const loadRequests = async () => {
+    if (refreshing) return; // Prevent multiple simultaneous loads
+    
+    setLoading(true);
+    try {
+      let allRequests = await VerificationWorkflowAPI.getAllRequests();
+
+      // Filter by institution if selected
+      if (selectedInstitution !== 'all') {
+        allRequests = allRequests.filter(req => req.target_institution_id === selectedInstitution);
+      }
+
+      // Filter by status if selected
+      if (selectedStatus !== 'all') {
+        allRequests = allRequests.filter(req => req.overall_status === selectedStatus);
+      }
+
+      // Filter by search query
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        allRequests = allRequests.filter(req => 
+          req.student_name.toLowerCase().includes(query) ||
+          req.request_number.toLowerCase().includes(query) ||
+          req.program_name.toLowerCase().includes(query) ||
+          (req.metadata?.applicant_email && req.metadata.applicant_email.toLowerCase().includes(query))
+        );
+      }
+
+      setRequests(allRequests);
+    } catch (error) {
+      console.error('Error loading requests:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getServiceId = (verificationType: string) => {
-    const mapping: { [key: string]: string } = {
-      'academic_certificate': 'ug_transcript',
-      'police_clearance': 'gps_clearance',
-      'court_records': 'hcg_records',
-      'transcript_request': 'ug_transcript'
-    };
-    return mapping[verificationType] || 'unknown_service';
+  // Refresh data
+  const refreshData = async () => {
+    setRefreshing(true);
+    await loadRequests();
+    setRefreshing(false);
   };
 
-  const convertStatus = (publicStatus: string) => {
-    const mapping: { [key: string]: string } = {
-      'submitted': 'Submitted',
-      'processing': 'Under Review',
-      'institution_verified': 'Pending Approval',
-      'completed': 'Completed',
-      'rejected': 'Rejected'
-    };
-    return mapping[publicStatus] || 'Submitted';
+  useEffect(() => {
+    loadRequests();
+  }, [selectedInstitution, selectedStatus, searchQuery]);
+
+  // Calculate statistics
+  const stats = {
+    total: requests.length,
+    submitted: requests.filter(r => r.overall_status === 'submitted').length,
+    gtecApproved: requests.filter(r => r.overall_status === 'gtec_approved').length,
+    institutionApproved: requests.filter(r => r.overall_status === 'institution_approved').length,
+    completed: requests.filter(r => r.overall_status === 'completed').length,
+    rejected: requests.filter(r => 
+      r.overall_status === 'gtec_rejected' || r.overall_status === 'institution_rejected'
+    ).length,
   };
 
-  const getServiceFee = (verificationType: string) => {
-    const fees: { [key: string]: number } = {
-      'academic_certificate': 100,
-      'police_clearance': 50,
-      'court_records': 75,
-      'transcript_request': 60
+  // Group requests by institution for overview
+  const requestsByInstitution = institutions.map(institution => {
+    const institutionRequests = requests.filter(req => req.target_institution_id === institution.id);
+    return {
+      ...institution,
+      requestCount: institutionRequests.length,
+      pendingCount: institutionRequests.filter(req => 
+        ['submitted', 'gtec_approved', 'institution_approved'].includes(req.overall_status)
+      ).length,
+      completedCount: institutionRequests.filter(req => req.overall_status === 'completed').length
     };
-    return fees[verificationType] || 50;
-  };
-
-  const filteredRequests = masterRequests.filter(request => {
-    const statusMatch = statusFilter === 'all' || request.status === statusFilter;
-    const institutionMatch = institutionFilter === 'all' || request.institution_id === institutionFilter;
-    return statusMatch && institutionMatch;
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return <Badge variant="success">Completed</Badge>;
-      case 'Under Review':
-        return <Badge variant="info">Under Review</Badge>;
-      case 'Pending Approval':
-        return <Badge variant="warning">Pending Approval</Badge>;
-      case 'Rejected':
-        return <Badge variant="error">Rejected</Badge>;
-      case 'Submitted':
-        return <Badge variant="default">Submitted</Badge>;
-      default:
-        return <Badge variant="default">{status}</Badge>;
-    }
-  };
+  const selectedRequestData = selectedRequest
+    ? requests.find(r => r.id === selectedRequest)
+    : null;
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'Rejected':
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'Under Review':
-      case 'Pending Approval':
-        return <AlertCircle className="h-4 w-4 text-yellow-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-600" />;
-    }
-  };
-
-  const getSLABadge = (risk: string | null) => {
-    if (!risk) return null;
-    switch (risk) {
-      case 'On Time':
-        return <Badge variant="success" size="sm">On Time</Badge>;
-      case 'At Risk':
-        return <Badge variant="warning" size="sm">At Risk</Badge>;
-      case 'Overdue':
-        return <Badge variant="error" size="sm">Overdue</Badge>;
-      default:
-        return <Badge variant="default" size="sm">{risk}</Badge>;
-    }
-  };
-
-  const getInstitutionIcon = (institutionId: string) => {
-    switch (institutionId) {
-      case 'gps':
-        return Shield;
-      case 'hcg':
-        return Scale;
-      case 'moe':
-        return GraduationCap;
-      default:
-        return Building2;
-    }
-  };
-
-  const getInstitutionName = (institutionId: string) => {
-    const institution = getInstitutionById(institutionId);
-    return institution?.acronym || 'Unknown';
-  };
-
-  const handleViewDetails = (request: MasterRequest) => {
-    setSelectedRequestData(request);
-    setShowRequestDetails(true);
-  };
-
-  const handleExportData = () => {
+  // Export functionality
+  const handleExport = () => {
     const csvContent = [
-      ['Request ID', 'Applicant', 'Institution', 'Service', 'Status', 'Submitted Date'],
-      ...filteredRequests.map(request => [
-        request.requestId,
-        request.applicant,
-        getInstitutionName(request.institution_id),
-        getServiceById(request.service_id)?.name || 'Unknown',
-        request.status,
-        new Date(request.submittedDate).toLocaleDateString()
-      ])
-    ].map(row => row.join(',')).join('\n');
+      // CSV Headers
+      ['Request Number', 'Student Name', 'Institution', 'Program', 'Status', 'Submitted Date', 'Applicant Email'].join(','),
+      // CSV Data
+      ...requests.map(req => [
+        req.request_number,
+        req.student_name,
+        VerificationWorkflowAPI.getInstitutionName(req.target_institution_id),
+        req.program_name,
+        VerificationWorkflowAPI.getStatusDisplayName(req.overall_status),
+        new Date(req.submitted_at).toLocaleDateString(),
+        req.metadata?.applicant_email || ''
+      ].join(','))
+    ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'requests_export.csv';
+    a.download = `verification_requests_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   };
+
+  if (loading && !refreshing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading verification requests...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -235,485 +170,456 @@ export function RequestMonitoring() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Request Monitoring</h1>
-          <p className="text-gray-600">Monitor and manage requests across all institutions</p>
+          <p className="text-gray-600">Monitor verification requests across all institutions</p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setShowAdvancedSearch(true)}>
-            <Search className="h-4 w-4 mr-2" />
-            Advanced Search
+          <Button variant="outline" onClick={refreshData} disabled={loading || refreshing}>
+            {refreshing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Refresh
           </Button>
-          <Button variant="outline" onClick={handleExportData}>
+          <Button variant="outline" onClick={handleExport} disabled={requests.length === 0}>
             <Download className="h-4 w-4 mr-2" />
-            Export Data
-          </Button>
-          <Button onClick={() => setShowSendRequestModal(true)}>
-            <Send className="h-4 w-4 mr-2" />
-            Send Test Request
+            Export
           </Button>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Status Filter */}
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <Card>
+          <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-700">Status:</span>
-              <div className="flex space-x-1">
-                {['all', 'Submitted', 'Under Review', 'Pending Approval', 'Completed', 'Rejected'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                      statusFilter === status
-                        ? 'bg-red-100 text-red-700'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {status === 'all' ? 'All' : status}
-                    <span className="ml-1 text-xs">
-                      ({status === 'all' ? masterRequests.length : masterRequests.filter(r => r.status === status).length})
-                    </span>
-                  </button>
-                ))}
+              <FileText className="h-5 w-5 text-blue-500" />
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-sm text-gray-600">Total</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Clock className="h-5 w-5 text-yellow-500" />
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{stats.submitted}</p>
+                <p className="text-sm text-gray-600">Submitted</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{stats.gtecApproved}</p>
+                <p className="text-sm text-gray-600">GTEC Approved</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5 text-purple-500" />
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{stats.institutionApproved}</p>
+                <p className="text-sm text-gray-600">Institution Approved</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{stats.completed}</p>
+                <p className="text-sm text-gray-600">Completed</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <XCircle className="h-5 w-5 text-red-500" />
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{stats.rejected}</p>
+                <p className="text-sm text-gray-600">Rejected</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Institution Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Requests by Institution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {requestsByInstitution.map((institution) => (
+              <div
+                key={institution.id}
+                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                  selectedInstitution === institution.id 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'hover:border-blue-500'
+                }`}
+                onClick={() => setSelectedInstitution(institution.id)}
+              >
+                <div className="flex items-center space-x-3 mb-3">
+                  <Building2 className="h-6 w-6 text-blue-500" />
+                  <h3 className="font-semibold text-gray-900">{institution.name}</h3>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Total Requests:</span>
+                    <span className="font-medium">{institution.requestCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Pending:</span>
+                    <span className="font-medium text-yellow-600">{institution.pendingCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Completed:</span>
+                    <span className="font-medium text-green-600">{institution.completedCount}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Filters and Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filter Requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Search by name, ID, or program..."
+                  disabled={loading || refreshing}
+                />
               </div>
             </div>
 
-            {/* Institution Filter */}
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-700">Institution:</span>
-              <div className="flex space-x-1">
-                <button
-                  onClick={() => setInstitutionFilter('all')}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                    institutionFilter === 'all'
-                      ? 'bg-red-100 text-red-700'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  All ({masterRequests.length})
-                </button>
-                {masterInstitutions.map((institution) => (
-                  <button
-                    key={institution.id}
-                    onClick={() => setInstitutionFilter(institution.id)}
-                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                      institutionFilter === institution.id
-                        ? 'bg-red-100 text-red-700'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {institution.acronym} ({masterRequests.filter(r => r.institution_id === institution.id).length})
-                  </button>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Institution</label>
+              <select
+                value={selectedInstitution}
+                onChange={(e) => setSelectedInstitution(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={loading || refreshing}
+              >
+                <option value="all">All Institutions</option>
+                {institutions.map((institution) => (
+                  <option key={institution.id} value={institution.id}>
+                    {institution.name}
+                  </option>
                 ))}
-              </div>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={loading || refreshing}
+              >
+                <option value="all">All Statuses</option>
+                <option value="submitted">Submitted</option>
+                <option value="gtec_approved">GTEC Approved</option>
+                <option value="institution_approved">Institution Approved</option>
+                <option value="completed">Completed</option>
+                <option value="gtec_rejected">GTEC Rejected</option>
+                <option value="institution_rejected">Institution Rejected</option>
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedInstitution('all');
+                  setSelectedStatus('all');
+                  setSearchQuery('');
+                }}
+                className="w-full"
+                disabled={loading || refreshing}
+              >
+                Clear Filters
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Requests List */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Requests Queue ({filteredRequests.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {filteredRequests.map((request) => {
-                  const service = getServiceById(request.service_id);
-                  const IconComponent = getInstitutionIcon(request.institution_id);
-                  
-                  return (
-                    <div
-                      key={request.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        selectedRequest === request.id
-                          ? 'border-red-500 bg-red-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => setSelectedRequest(request.id)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(request.status)}
-                          <span className="font-medium text-gray-900">{request.requestId}</span>
+      {/* Requests Table */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              Verification Requests ({requests.length})
+              {refreshing && (
+                <Loader2 className="h-4 w-4 ml-2 animate-spin inline" />
+              )}
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading && !refreshing ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Request #</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Student</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Institution</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Program</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Submitted</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.map((request) => (
+                    <tr key={request.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <span className="font-medium text-blue-600">{request.request_number}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-medium text-gray-900">{request.student_name}</p>
+                          {request.student_id && (
+                            <p className="text-sm text-gray-600">{request.student_id}</p>
+                          )}
+                          {request.metadata?.applicant_email && (
+                            <p className="text-xs text-gray-500">{request.metadata.applicant_email}</p>
+                          )}
                         </div>
-                        {getStatusBadge(request.status)}
-                      </div>
-                      
-                      <div className="flex items-center space-x-2 mb-2">
-                        <IconComponent className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm font-medium text-gray-900">
-                          {getInstitutionName(request.institution_id)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-gray-900">
+                          {VerificationWorkflowAPI.getInstitutionName(request.target_institution_id)}
                         </span>
-                      </div>
-                      
-                      <p className="text-sm font-medium text-gray-900">{request.applicant}</p>
-                      <p className="text-xs text-gray-600">{service?.name}</p>
-                      
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-gray-500">
-                          {new Date(request.submittedDate).toLocaleDateString()}
-                        </span>
-                        {getSLABadge(request.risk)}
-                      </div>
-                    </div>
-                  );
-                })}
-                
-                {filteredRequests.length === 0 && (
-                  <div className="text-center py-8">
-                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No requests found</p>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="text-gray-900">{request.program_name}</p>
+                          <p className="text-xs text-gray-500 capitalize">
+                            {request.verification_type.replace('_', ' ')}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={VerificationWorkflowAPI.getStatusColor(request.overall_status) as any}>
+                          {VerificationWorkflowAPI.getStatusDisplayName(request.overall_status)}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <span className="text-gray-600">
+                            {new Date(request.submitted_at).toLocaleDateString()}
+                          </span>
+                          <p className="text-xs text-gray-500">
+                            {new Date(request.submitted_at).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedRequest(request.id)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {requests.length === 0 && !loading && (
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No requests found</p>
+                  <p className="text-sm text-gray-400">Try adjusting your filters</p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Request Details Modal */}
+      {selectedRequestData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">Request Details</h3>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedRequest(null)}>
+                <XCircle className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Request Number</label>
+                  <p className="text-gray-900">{selectedRequestData.request_number}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Student Name</label>
+                  <p className="text-gray-900">{selectedRequestData.student_name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Student ID</label>
+                  <p className="text-gray-900">{selectedRequestData.student_id || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Program</label>
+                  <p className="text-gray-900">{selectedRequestData.program_name}</p>
+                </div>
+                {selectedRequestData.metadata?.applicant_email && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Applicant Email</label>
+                    <p className="text-gray-900">{selectedRequestData.metadata.applicant_email}</p>
+                  </div>
+                )}
+                {selectedRequestData.metadata?.applicant_phone && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Applicant Phone</label>
+                    <p className="text-gray-900">{selectedRequestData.metadata.applicant_phone}</p>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Request Details */}
-        <div className="lg:col-span-2">
-          {selectedRequest ? (
-            (() => {
-              const requestData = masterRequests.find(r => r.id === selectedRequest);
-              if (!requestData) return null;
-
-              const service = getServiceById(requestData.service_id);
-              const institution = getInstitutionById(requestData.institution_id);
-
-              return (
-                <div className="space-y-6">
-                  {/* Request Header */}
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle>Request {requestData.requestId}</CardTitle>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <span className="text-gray-600">{service?.name}</span>
-                            <span className="text-gray-400">•</span>
-                            <span className="text-gray-600">{institution?.name}</span>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm" onClick={() => handleViewDetails(requestData)}>
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Details
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center p-3 bg-gray-50 rounded">
-                          {getStatusIcon(requestData.status)}
-                          <p className="text-sm font-medium text-gray-900 mt-1">
-                            {requestData.status}
-                          </p>
-                          <p className="text-xs text-gray-600">Status</p>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded">
-                          <Calendar className="h-5 w-5 text-blue-600 mx-auto" />
-                          <p className="text-sm font-medium text-gray-900 mt-1">
-                            {new Date(requestData.submittedDate).toLocaleDateString()}
-                          </p>
-                          <p className="text-xs text-gray-600">Submitted</p>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded">
-                          <DollarSign className="h-5 w-5 text-green-600 mx-auto" />
-                          <p className="text-sm font-medium text-gray-900 mt-1">
-                            GHS {requestData.paymentAmount}
-                          </p>
-                          <p className="text-xs text-gray-600">Fee</p>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded">
-                          <Badge variant={requestData.paymentStatus === 'Paid' ? 'success' : 'warning'}>
-                            {requestData.paymentStatus}
-                          </Badge>
-                          <p className="text-xs text-gray-600 mt-1">Payment</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Requester Information */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Requester Information</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Full Name</label>
-                          <p className="text-gray-900">{requestData.requesterInfo.name}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Email</label>
-                          <p className="text-gray-900">{requestData.requesterInfo.email}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Phone</label>
-                          <p className="text-gray-900">{requestData.requesterInfo.phone}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">ID Number</label>
-                          <p className="text-gray-900">{requestData.requesterInfo.idNumber}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Processing History */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Processing History</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {requestData.processingHistory.map((history, index) => (
-                          <div key={history.id} className="relative">
-                            {index < requestData.processingHistory.length - 1 && (
-                              <div className="absolute left-4 top-8 w-0.5 h-8 bg-gray-300"></div>
-                            )}
-                            <div className="flex items-start space-x-3">
-                              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                <CheckCircle className="h-4 w-4 text-blue-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900">{history.action}</p>
-                                <p className="text-sm text-gray-600">Stage: {history.stage}</p>
-                                {history.comments && (
-                                  <p className="text-sm text-gray-600 mt-1">{history.comments}</p>
-                                )}
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {new Date(history.performedAt).toLocaleString()} • {history.performedBy}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              );
-            })()
-          ) : (
-            <Card>
-              <CardContent className="text-center py-12">
-                <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Request</h3>
-                <p className="text-gray-600">Choose a request from the queue to view details and monitor progress.</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-
-      {/* Send Test Request Modal */}
-      {showSendRequestModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowSendRequestModal(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Send Test Request</h3>
-              <Button variant="ghost" size="sm" onClick={() => setShowSendRequestModal(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Institution</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                  <option value="">Select Institution</option>
-                  {masterInstitutions.map(institution => (
-                    <option key={institution.id} value={institution.id}>{institution.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Service</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                  <option value="">Select Service</option>
-                  {masterServices.map(service => (
-                    <option key={service.id} value={service.id}>{service.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Applicant Name</label>
-                <input type="text" defaultValue="Test User" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Applicant Email</label>
-                <input type="email" defaultValue="test@example.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500" />
-              </div>
-              <div className="flex justify-end space-x-3 pt-4">
-                <Button variant="outline" onClick={() => setShowSendRequestModal(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => {
-                  alert('Test request sent successfully!');
-                  setShowSendRequestModal(false);
-                }}>
-                  Send Request
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Advanced Search Modal */}
-      {showAdvancedSearch && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowAdvancedSearch(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Advanced Search</h3>
-              <Button variant="ghost" size="sm" onClick={() => setShowAdvancedSearch(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Request ID</label>
-                <input type="text" placeholder="e.g., #gps-45" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Applicant Name</label>
-                <input type="text" placeholder="Enter applicant name" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-                  <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500" />
+                  <label className="text-sm font-medium text-gray-700">Status</label>
+                  <Badge variant={VerificationWorkflowAPI.getStatusColor(selectedRequestData.overall_status) as any}>
+                    {VerificationWorkflowAPI.getStatusDisplayName(selectedRequestData.overall_status)}
+                  </Badge>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-                  <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500" />
+                  <label className="text-sm font-medium text-gray-700">Target Institution</label>
+                  <p className="text-gray-900">
+                    {VerificationWorkflowAPI.getInstitutionName(selectedRequestData.target_institution_id)}
+                  </p>
                 </div>
-              </div>
-              <div className="flex justify-end space-x-3 pt-4">
-                <Button variant="outline" onClick={() => setShowAdvancedSearch(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => {
-                  alert('Search functionality would filter results based on criteria');
-                  setShowAdvancedSearch(false);
-                }}>
-                  Search
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Request Details Modal */}
-      {showRequestDetails && selectedRequestData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowRequestDetails(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Request Details - {selectedRequestData.requestId}</h3>
-              <Button variant="ghost" size="sm" onClick={() => setShowRequestDetails(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="space-y-6">
-              {/* Request Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Request Information</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Request ID:</span>
-                      <span className="font-medium">{selectedRequestData.requestId}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Service:</span>
-                      <span className="font-medium">{getServiceById(selectedRequestData.service_id)?.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Institution:</span>
-                      <span className="font-medium">{getInstitutionById(selectedRequestData.institution_id)?.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      {getStatusBadge(selectedRequestData.status)}
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Priority:</span>
-                      <Badge variant={selectedRequestData.priority === 'Urgent' ? 'error' : selectedRequestData.priority === 'High' ? 'warning' : 'default'}>
-                        {selectedRequestData.priority}
-                      </Badge>
-                    </div>
+                  <label className="text-sm font-medium text-gray-700">Verification Type</label>
+                  <p className="text-gray-900 capitalize">
+                    {selectedRequestData.verification_type.replace('_', ' ')}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Submitted Date</label>
+                  <p className="text-gray-900">
+                    {new Date(selectedRequestData.submitted_at).toLocaleDateString()}
+                  </p>
+                </div>
+                {selectedRequestData.metadata?.purpose && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Purpose</label>
+                    <p className="text-gray-900">{selectedRequestData.metadata.purpose}</p>
                   </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Applicant Details</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-400" />
-                      <span>{selectedRequestData.requesterInfo.name}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Mail className="h-4 w-4 text-gray-400" />
-                      <span>{selectedRequestData.requesterInfo.email}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Phone className="h-4 w-4 text-gray-400" />
-                      <span>{selectedRequestData.requesterInfo.phone}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4 text-gray-400" />
-                      <span>ID: {selectedRequestData.requesterInfo.idNumber}</span>
-                    </div>
+                )}
+                {selectedRequestData.rejection_reason && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Rejection Reason</label>
+                    <p className="text-red-700 bg-red-50 p-2 rounded">{selectedRequestData.rejection_reason}</p>
                   </div>
-                </div>
+                )}
               </div>
+            </div>
 
-              {/* Timeline */}
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3">Processing Timeline</h4>
-                <div className="space-y-4">
-                  {selectedRequestData.processingHistory.map((history, index) => (
-                    <div key={history.id} className="relative">
-                      {index < selectedRequestData.processingHistory.length - 1 && (
-                        <div className="absolute left-4 top-8 w-0.5 h-8 bg-gray-300"></div>
-                      )}
-                      <div className="flex items-start space-x-3">
-                        <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <CheckCircle className="h-4 w-4 text-blue-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900">{history.action}</p>
-                          <p className="text-sm text-gray-600">Stage: {history.stage}</p>
-                          {history.comments && (
-                            <p className="text-sm text-gray-600 mt-1 italic">"{history.comments}"</p>
-                          )}
-                          <div className="flex items-center space-x-4 mt-1">
-                            <p className="text-xs text-gray-500">
-                              {new Date(history.performedAt).toLocaleString()}
-                            </p>
-                            <p className="text-xs text-gray-500">By: {history.performedBy}</p>
-                            {history.duration && (
-                              <p className="text-xs text-gray-500">Duration: {history.duration}h</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+            {/* Timeline */}
+            <div className="mt-6 border-t pt-6">
+              <h4 className="font-semibold text-gray-900 mb-4">Progress Timeline</h4>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">Request Submitted</span>
+                  <span className="text-xs text-gray-500">
+                    {new Date(selectedRequestData.submitted_at).toLocaleString()}
+                  </span>
                 </div>
+                
+                {selectedRequestData.gtec_approved_at && (
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-sm">GTEC Approved</span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(selectedRequestData.gtec_approved_at).toLocaleString()}
+                    </span>
+                    {selectedRequestData.gtec_approved_by && (
+                      <span className="text-xs text-gray-400">by {selectedRequestData.gtec_approved_by}</span>
+                    )}
+                  </div>
+                )}
+                
+                {selectedRequestData.institution_approved_at && (
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-sm">Institution Approved</span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(selectedRequestData.institution_approved_at).toLocaleString()}
+                    </span>
+                    {selectedRequestData.institution_approved_by && (
+                      <span className="text-xs text-gray-400">by {selectedRequestData.institution_approved_by}</span>
+                    )}
+                  </div>
+                )}
+                
+                {selectedRequestData.completed_at && (
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-sm">Completed</span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(selectedRequestData.completed_at).toLocaleString()}
+                    </span>
+                  </div>
+                )}
               </div>
+            </div>
+
+            {/* Action Button */}
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => window.location.href = '/admin/verification'}>
+                Go to Verification System
+              </Button>
             </div>
           </div>
         </div>

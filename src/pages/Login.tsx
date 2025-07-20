@@ -1,23 +1,47 @@
+// src/pages/Login.tsx - REPLACE ENTIRE FILE
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Add this import
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export function Login() {
   const { state, login } = useAuth();
-  const navigate = useNavigate(); // Add navigation hook
+  const navigate = useNavigate();
   const [credentials, setCredentials] = useState({
     email: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
 
-  // Add effect to handle successful login
+  // Role-based redirect logic
   useEffect(() => {
     if (state.isAuthenticated && state.user) {
       console.log('Login successful, redirecting...', state.user);
-      navigate('/admin');
+      
+      // Redirect based on user role
+      switch (state.user.role) {
+        case 'bacchecker_admin':
+        case 'gtec_admin':
+          navigate('/admin', { replace: true });
+          break;
+        case 'tertiary_institution_user':
+          navigate('/user', { replace: true });
+          break;
+        case 'institution_admin':
+          // Check if onboarding is completed
+          const onboardingKey = `onboarding_completed_${state.user.institutionId}`;
+          const onboardingCompleted = localStorage.getItem(onboardingKey);
+          if (onboardingCompleted === 'true') {
+            navigate('/', { replace: true }); // Will trigger InstitutionRoutes
+          } else {
+            navigate('/', { replace: true }); // Will show onboarding
+          }
+          break;
+        default:
+          // Fallback for unknown roles
+          navigate('/unauthorized', { replace: true });
+      }
     }
   }, [state.isAuthenticated, state.user, navigate]);
 
@@ -26,20 +50,13 @@ export function Login() {
     console.log('Login form submitted', credentials);
     
     try {
-      const result = await login(credentials);
-      console.log('Login result:', result);
-      
-      // If login doesn't automatically update state, handle success here
-      if (result && result.success) {
-        navigate('/admin');
-      }
+      await login(credentials);
     } catch (error) {
       console.error('Login error:', error);
-      // Error should be handled by AuthContext, but log it here too
     }
   };
 
-  const handleDemoAccountClick = (account) => {
+  const handleDemoAccountClick = (account: any) => {
     console.log('Demo account selected:', account);
     setCredentials({ email: account.email, password: 'password123' });
   };
@@ -55,171 +72,152 @@ export function Login() {
       email: 'admin@gtec.edu.gh',
       name: 'GTEC Administrator',
       role: 'GTEC Admin',
-      description: 'Manage tertiary institutions and accreditation'
+      description: 'Manage tertiary institutions and verification processes'
     },
     {
       email: 'admin@ug.edu.gh',
       name: 'University of Ghana',
       role: 'Tertiary Institution User',
-      description: 'Manage university profile and academic services'
+      description: 'Manage university profile and verification requests'
     },
     {
       email: 'admin@knust.edu.gh',
       name: 'KNUST',
       role: 'Tertiary Institution User',
-      description: 'Manage KNUST profile and academic services'
-    },
-    {
-      email: 'admin@police.gov.gh',
-      name: 'Ghana Police Service',
-      role: 'Institution Admin',
-      description: 'Traditional onboarding flow with full setup wizard'
+      description: 'Manage KNUST profile and verification requests'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Side - Branding */}
-        <div className="flex flex-col justify-center space-y-8">
-          <div className="text-center lg:text-left">
-            <div className="flex items-center justify-center lg:justify-start space-x-4 mb-6">
-              <img src="/image.png" alt="BacChecker" className="h-16 w-16" />
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">BacChecker Government Suite™</h1>
-                <p className="text-gray-600">Sovereign Digital Verification Platform</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4 text-gray-600">
-              <p className="text-lg">
-                Secure, scalable government records management platform trusted by institutions across Ghana.
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-                <div className="flex items-center space-x-3 p-4 bg-white rounded-lg shadow-sm">
-                  <Shield className="h-8 w-8 text-red-600" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Secure & Compliant</h3>
-                    <p className="text-sm text-gray-600">Government-grade security</p>
-                  </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden">
+        <div className="flex flex-col lg:flex-row">
+          {/* Left Panel - Branding */}
+          <div className="lg:w-1/2 bg-gradient-to-br from-blue-700 to-blue-900 p-8 lg:p-12 text-white relative overflow-hidden">
+            <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+            <div className="relative z-10">
+              <div className="flex items-center mb-8">
+                <Shield className="h-12 w-12 mr-4" />
+                <div>
+                  <h1 className="text-3xl font-bold">BacChecker</h1>
+                  <p className="text-blue-200">Document Verification System</p>
                 </div>
-                
-                <div className="flex items-center space-x-3 p-4 bg-white rounded-lg shadow-sm">
-                  <Shield className="h-8 w-8 text-red-600" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Multi-Institutional</h3>
-                    <p className="text-sm text-gray-600">Unified platform for all agencies</p>
+              </div>
+              
+              <div className="mb-8">
+                <h2 className="text-2xl font-semibold mb-4">Secure. Fast. Reliable.</h2>
+                <p className="text-blue-100 leading-relaxed">
+                  Ghana's premier platform for document verification and credential authentication. 
+                  Join thousands of institutions in our secure verification network.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-white text-sm">✓</span>
                   </div>
+                  <span>End-to-end encryption</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-white text-sm">✓</span>
+                  </div>
+                  <span>Real-time verification</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-white text-sm">✓</span>
+                  </div>
+                  <span>Multi-institution network</span>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Right Side - Login Form */}
-        <div className="flex flex-col justify-center">
-          <div className="bg-white rounded-2xl shadow-xl p-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-              <p className="text-gray-600">Sign in to access your dashboard</p>
-            </div>
-
-            {state.error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                <span className="text-red-700">{state.error}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={credentials.email}
-                  onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-                  placeholder="Enter your email"
-                  required
-                  disabled={state.isLoading}
-                />
+          {/* Right Panel - Login Form */}
+          <div className="lg:w-1/2 p-8 lg:p-12">
+            <div className="max-w-md mx-auto">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+                <p className="text-gray-600">Sign in to your account to continue</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
                   <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={credentials.password}
-                    onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors pr-12"
-                    placeholder="Enter your password"
+                    id="email"
+                    type="email"
+                    value={credentials.email}
+                    onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="Enter your email"
                     required
-                    disabled={state.isLoading}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    disabled={state.isLoading}
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={credentials.password}
+                      onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors pr-12"
+                      placeholder="Enter your password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {state.error && (
+                  <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg">
+                    <AlertCircle className="h-5 w-5" />
+                    <span className="text-sm">{state.error}</span>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full py-3"
+                  disabled={state.isLoading}
+                >
+                  {state.isLoading ? 'Signing in...' : 'Sign In'}
+                </Button>
+              </form>
+
+              <div className="mt-8">
+                <div className="text-center text-sm text-gray-600 mb-4">
+                  Demo Accounts (Development Only)
+                </div>
+                <div className="space-y-2">
+                  {demoAccounts.map((account, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleDemoAccountClick(account)}
+                      className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="font-medium text-gray-900">{account.name}</div>
+                      <div className="text-sm text-gray-600">{account.role}</div>
+                      <div className="text-xs text-gray-500">{account.description}</div>
+                    </button>
+                  ))}
                 </div>
               </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                isLoading={state.isLoading}
-                disabled={state.isLoading}
-              >
-                {state.isLoading ? 'Signing In...' : 'Sign In'}
-              </Button>
-            </form>
-
-            {/* Demo Accounts */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h3 className="text-sm font-medium text-gray-700 mb-4">Demo Accounts</h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {demoAccounts.map((account) => (
-                  <button
-                    key={account.email}
-                    onClick={() => handleDemoAccountClick(account)}
-                    className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-                    disabled={state.isLoading}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">{account.name}</p>
-                        <p className="text-sm text-gray-600">{account.description}</p>
-                      </div>
-                      <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
-                        {account.role}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
             </div>
-
-            {/* Debug Information (remove in production) */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
-                <p>Debug - Auth State: {JSON.stringify({ 
-                  isAuthenticated: state.isAuthenticated, 
-                  isLoading: state.isLoading, 
-                  error: state.error,
-                  hasUser: !!state.user
-                })}</p>
-              </div>
-            )}
           </div>
         </div>
       </div>

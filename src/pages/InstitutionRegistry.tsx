@@ -23,7 +23,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { tertiaryInstitutionAPI, TertiaryInstitution } from '../utils/supabase';
-import { institutionProgramsAPI, InstitutionProgram } from '../utils/verificationAPI';
+import { institutionProgramsAPI, InstitutionProgram } from '../utils/verificationProcessingAPI';
 
 export function InstitutionRegistry() {
   const { state } = useAuth();

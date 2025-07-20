@@ -1,395 +1,313 @@
+// src/pages/DocumentVerification.tsx - REPLACE ENTIRE FILE
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../context/AuthContext';
 import {
-  Upload,
   FileText,
-  Search,
-  Filter,
-  Eye,
-  Download,
-  Clock,
   CheckCircle,
   XCircle,
-  AlertCircle,
+  Clock,
+  Eye,
+  MessageSquare,
   User,
   Calendar,
   Building2,
-  GraduationCap,
-  Plus,
-  X,
+  AlertTriangle,
+  ThumbsUp,
+  ThumbsDown,
   Send,
-  RefreshCw
+  RefreshCw,
+  Filter,
+  Search,
+  X,
+  Loader2
 } from 'lucide-react';
-import { 
-  verificationRequestsAPI, 
-  documentSubmissionsAPI, 
-  institutionProgramsAPI,
-  verificationPhasesAPI,
-  workflowEngine,
-  VerificationRequest, 
-  DocumentSubmission, 
-  InstitutionProgram 
-} from '../utils/verificationAPI';
-import { tertiaryInstitutionAPI } from '../utils/supabase';
+import { VerificationWorkflowAPI } from '../utils/verificationWorkflowAPI';
+import { VerificationRequest, VerificationStatus } from '../types/verification';
 
 export function DocumentVerification() {
   const { state } = useAuth();
   const { user } = state;
-  const [activeTab, setActiveTab] = useState('requests');
+  
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
-  const [showNewRequestModal, setShowNewRequestModal] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [institutions, setInstitutions] = useState<any[]>([]);
-  const [programs, setPrograms] = useState<InstitutionProgram[]>([]);
+  const [activeTab, setActiveTab] = useState('requests');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [approvalComments, setApprovalComments] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [refreshing, setRefreshing] = useState(false);
 
   const isGTECAdmin = user?.role === 'gtec_admin';
+  const isBacCheckerAdmin = user?.role === 'bacchecker_admin';
   const isTertiaryUser = user?.role === 'tertiary_institution_user';
 
-  useEffect(() => {
-    loadData();
-  }, [user]);
-
-  const loadData = async () => {
+  // Load verification requests based on user role
+  const loadRequests = async () => {
+    if (refreshing) return; // Prevent multiple simultaneous loads
+    
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      // Load requests from backend and localStorage
-      let allRequests: VerificationRequest[] = [];
+      let requests: VerificationRequest[] = [];
 
-      try {
-        // Try to load from backend
-        if (isGTECAdmin) {
-          const backendRequests = await verificationRequestsAPI.getAll();
-          allRequests = backendRequests;
-        } else if (user?.institutionId) {
-          const institutionRequests = await verificationRequestsAPI.getByInstitution(user.institutionId);
-          allRequests = institutionRequests;
-        }
-      } catch (error) {
-        console.log('Backend not available, using mock data');
-        
-        // Load from localStorage (public portal requests)
-        const publicRequests = localStorage.getItem('public_verification_requests');
-        if (publicRequests) {
-          try {
-            const parsed = JSON.parse(publicRequests);
-            // Convert public requests to verification requests format
-            allRequests = parsed.map((req: any) => ({
-              id: req.id,
-              request_number: req.requestNumber,
-              requesting_institution_id: 'public',
-              target_institution_id: getInstitutionId(req.targetInstitution),
-              student_name: req.applicantName,
-              student_id: req.idNumber,
-              program_name: req.programName || 'N/A',
-              graduation_date: req.graduationDate || null,
-              verification_type: req.verificationType,
-              current_phase: req.currentPhase,
-              overall_status: req.status,
-              priority_level: 'normal',
-              verification_score: req.verificationScore,
-              fraud_flags: [],
-              metadata: {
-                purpose: req.purpose,
-                applicant_email: req.applicantEmail,
-                applicant_phone: req.applicantPhone,
-                source: 'public_portal'
-              },
-              submitted_at: req.submittedAt,
-              created_at: req.submittedAt,
-              updated_at: new Date().toISOString()
-            }));
-          } catch (parseError) {
-            console.error('Error parsing public requests:', parseError);
-          }
-        }
-        
-        // Add some demo requests if none exist
-        if (allRequests.length === 0) {
-          allRequests = [
-            {
-              id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
-              request_number: 'VER-12345678',
-              requesting_institution_id: user?.institutionId || 'ug',
-              target_institution_id: 'knust',
-              student_name: 'John Doe',
-              student_id: 'UG123456',
-              program_name: 'Bachelor of Science in Computer Science',
-              graduation_date: '2023-06-15',
-              verification_type: 'academic_certificate',
-              current_phase: 1,
-              overall_status: 'submitted',
-              priority_level: 'normal',
-              verification_score: 0,
-              fraud_flags: [],
-              metadata: { purpose: 'Employment verification' },
-              submitted_at: new Date().toISOString(),
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }
-          ];
-        }
+      if (isGTECAdmin || isBacCheckerAdmin) {
+        // GTEC/BacChecker admins see all requests that need their action
+        requests = await VerificationWorkflowAPI.getGTECRequests();
+      } else if (isTertiaryUser && user?.institutionId) {
+        // Institution users see requests forwarded to their institution
+        requests = await VerificationWorkflowAPI.getInstitutionRequests(user.institutionId);
       }
 
-      setVerificationRequests(allRequests);
+      // Apply status filter
+      if (filterStatus !== 'all') {
+        requests = requests.filter(req => req.overall_status === filterStatus);
+      }
 
-      // Mock institutions data
-      const mockInstitutions = [
-        { id: 'ug', name: 'University of Ghana', acronym: 'UG' },
-        { id: 'knust', name: 'KNUST', acronym: 'KNUST' },
-        { id: 'ucc', name: 'University of Cape Coast', acronym: 'UCC' }
-      ];
-      setInstitutions(mockInstitutions);
-
-      // Mock programs data
-      const mockPrograms = [
-        {
-          id: 'prog-1',
-          institution_id: user?.institutionId || 'ug',
-          program_code: 'BSC-CS',
-          program_name: 'Bachelor of Science in Computer Science',
-          program_level: 'bachelor' as const,
-          accreditation_status: 'accredited' as const,
-          program_status: 'active' as const,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ];
-      setPrograms(mockPrograms);
+      setVerificationRequests(requests);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading requests:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getInstitutionId = (institutionName: string) => {
-    const mapping: { [key: string]: string } = {
-      'University of Ghana': 'ug',
-      'KNUST': 'knust',
-      'University of Cape Coast': 'ucc',
-      'Ghana Police Service': 'gps',
-      'High Court of Ghana': 'hcg',
-      'Ministry of Education': 'moe'
-    };
-    return mapping[institutionName] || 'unknown';
+  // Refresh data
+  const refreshData = async () => {
+    setRefreshing(true);
+    await loadRequests();
+    setRefreshing(false);
   };
 
-  const handleCreateRequest = async (formData: any) => {
-    try {
-      setProcessing(true);
-      
-      // Generate unique request number
-      const requestNumber = `VER-${Date.now().toString().slice(-8)}`;
-      
-      // For now, create mock request since database doesn't exist
-      const newRequest: VerificationRequest = {
-        id: crypto.randomUUID(),
-        request_number: requestNumber,
-        requesting_institution_id: user?.institutionId,
-        target_institution_id: formData.target_institution,
-        student_name: formData.student_name,
-        student_id: formData.student_id,
-        program_name: formData.program_name,
-        graduation_date: formData.graduation_date,
-        verification_type: formData.verification_type,
-        priority_level: formData.priority_level || 'normal',
-        current_phase: 1,
-        verification_score: 0,
-        fraud_flags: [],
-        metadata: {
-          purpose: formData.purpose,
-          additional_notes: formData.notes
-        },
-        submitted_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+  useEffect(() => {
+    loadRequests();
+  }, [user, filterStatus]);
 
-      setVerificationRequests(prev => [newRequest, ...prev]);
-      setShowNewRequestModal(false);
-      alert(`Verification request ${newRequest.request_number} created successfully! The request will now go through our 4-phase verification process.`);
-    } catch (error) {
-      console.error('Error creating request:', error);
-      alert('Error creating verification request. Please try again.');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleUploadDocument = async (requestId: string, file: File, documentType: string) => {
-    try {
-      setProcessing(true);
-
-      // Mock document upload
-      console.log(`Uploading ${file.name} for request ${requestId} as ${documentType}`);
-
-      alert('Document uploaded successfully!');
-      setShowUploadModal(false);
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      alert('Error uploading document. Please try again.');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleProcessPhase = async (requestId: string, phase: number) => {
-    try {
-      setProcessing(true);
-      
-      // Phase-specific processing logic
-      let score = Math.floor(Math.random() * 30) + 70; // 70-100 range
-      let passed = false;
-      let newStatus = '';
-      let shouldForwardToInstitution = false;
-      
-      if (phase === 1 && isGTECAdmin) {
-        // GTEC Initial Review - approve to forward to institution
-        passed = score >= 70;
-        newStatus = passed ? 'gtec_approved' : 'rejected';
-        shouldForwardToInstitution = passed;
-      } else if (phase === 2 && isTertiaryUser) {
-        // Institution processing
-        passed = score >= 75;
-        newStatus = passed ? 'institution_processed' : 'rejected';
-      } else if (phase === 3 && isGTECAdmin) {
-        // GTEC Final Review
-        passed = score >= 80;
-        newStatus = passed ? 'completed' : 'rejected';
-      } else {
-        // Default processing
-        passed = score >= (phase === 1 ? 70 : phase === 2 ? 75 : phase === 3 ? 80 : 85);
-        newStatus = passed ? 'processing' : 'rejected';
-      }
-      
-      // Update the request in state and localStorage
-      setVerificationRequests(prev => prev.map(req => {
-        if (req.id === requestId) {
-          const newPhase = passed ? Math.min(3, req.current_phase + 1) : req.current_phase;
-          
-          return {
-            ...req,
-            current_phase: newPhase,
-            overall_status: newStatus,
-            verification_score: score,
-            updated_at: new Date().toISOString()
-          };
-        }
-        return req;
-      }));
-
-      // Update public portal requests if this is a public request
-      const publicRequests = localStorage.getItem('public_verification_requests');
-      if (publicRequests) {
-        try {
-          const parsed = JSON.parse(publicRequests);
-          const updatedPublicRequests = parsed.map((req: any) => {
-            if (req.id === requestId || req.requestNumber === requestId) {
-              return {
-                ...req,
-                status: newStatus,
-                currentPhase: passed ? Math.min(3, req.currentPhase + 1) : req.currentPhase,
-                verificationScore: score,
-                lastUpdated: new Date().toISOString()
-              };
-            }
-            return req;
-          });
-          localStorage.setItem('public_verification_requests', JSON.stringify(updatedPublicRequests));
-        } catch (error) {
-          console.error('Error updating public requests:', error);
-        }
-      }
-
-      const result = { success: passed, score };
-      
-      if (result?.success) {
-        if (phase === 1 && isGTECAdmin && shouldForwardToInstitution) {
-          alert(`GTEC Initial Review completed! Request approved and forwarded to target institution for processing. Score: ${score}`);
-        } else if (phase === 2 && isTertiaryUser) {
-          alert(`Institution processing completed! Request sent back to GTEC for final review. Score: ${score}`);
-        } else if (phase === 3 && isGTECAdmin) {
-          alert(`GTEC Final Review completed! Verification approved and ready for delivery. Score: ${score}`);
-        } else {
-          alert(`Phase ${phase} completed successfully! Score: ${score}. Moving to next phase.`);
-        }
-      } else {
-        alert(`Phase ${phase} failed. Score too low: ${score}. Request rejected.`);
-      }
-    } catch (error) {
-      console.error('Error processing phase:', error);
-      alert('Error processing phase. Please try again.');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const generateFileHash = async (file: File): Promise<string> => {
-    // Mock hash generation
-    return `hash_${file.name}_${Date.now()}`;
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Badge variant="success">Completed</Badge>;
-      case 'gtec_approved':
-        return <Badge variant="info">GTEC Approved</Badge>;
-      case 'institution_processed':
-        return <Badge variant="warning">Institution Processed</Badge>;
-      case 'processing':
-        return <Badge variant="info">Processing</Badge>;
-      case 'quality_review':
-        return <Badge variant="warning">Quality Review</Badge>;
-      case 'rejected':
-        return <Badge variant="error">Rejected</Badge>;
-      case 'flagged':
-        return <Badge variant="error">Flagged</Badge>;
-      default:
-        return <Badge variant="default">{status}</Badge>;
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'gtec_approved':
-        return <CheckCircle className="h-4 w-4 text-blue-600" />;
-      case 'institution_processed':
-        return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-      case 'rejected':
-      case 'flagged':
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'processing':
-      case 'quality_review':
-        return <AlertCircle className="h-4 w-4 text-yellow-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-600" />;
-    }
-  };
-
-  const selectedRequestData = selectedRequest 
+  const selectedRequestData = selectedRequest
     ? verificationRequests.find(r => r.id === selectedRequest)
     : null;
 
-  const tabs = [
-    { id: 'requests', name: 'Verification Requests', icon: FileText },
-    { id: 'workflow', name: 'Workflow Management', icon: RefreshCw },
-    { id: 'analytics', name: 'Analytics', icon: Eye }
-  ];
+  // Handle GTEC approval
+  const handleGTECApproval = async () => {
+    if (!selectedRequest || !user) return;
+    
+    setProcessing(true);
+    try {
+      const updatedRequest = await VerificationWorkflowAPI.gtecApproveRequest(
+        selectedRequest,
+        user.id,
+        approvalComments
+      );
 
-  if (loading) {
+      if (updatedRequest) {
+        setVerificationRequests(prev => 
+          prev.map(req => req.id === selectedRequest ? updatedRequest : req)
+        );
+        setApprovalComments('');
+        setShowApprovalModal(false);
+        alert('Request approved and forwarded to institution successfully!');
+      } else {
+        alert('Error approving request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error approving request:', error);
+      alert('Error approving request. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handle GTEC rejection
+  const handleGTECRejection = async () => {
+    if (!selectedRequest || !user || !rejectionReason.trim()) return;
+    
+    setProcessing(true);
+    try {
+      const updatedRequest = await VerificationWorkflowAPI.gtecRejectRequest(
+        selectedRequest,
+        user.id,
+        rejectionReason
+      );
+
+      if (updatedRequest) {
+        setVerificationRequests(prev => 
+          prev.map(req => req.id === selectedRequest ? updatedRequest : req)
+        );
+        setRejectionReason('');
+        setShowRejectionModal(false);
+        alert('Request rejected successfully!');
+      } else {
+        alert('Error rejecting request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      alert('Error rejecting request. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handle Institution approval
+  const handleInstitutionApproval = async () => {
+    if (!selectedRequest || !user) return;
+    
+    setProcessing(true);
+    try {
+      const updatedRequest = await VerificationWorkflowAPI.institutionApproveRequest(
+        selectedRequest,
+        user.id,
+        approvalComments
+      );
+
+      if (updatedRequest) {
+        setVerificationRequests(prev => 
+          prev.map(req => req.id === selectedRequest ? updatedRequest : req)
+        );
+        setApprovalComments('');
+        setShowApprovalModal(false);
+        alert('Request approved and sent back to GTEC for final approval!');
+      } else {
+        alert('Error approving request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error approving request:', error);
+      alert('Error approving request. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handle Institution rejection
+  const handleInstitutionRejection = async () => {
+    if (!selectedRequest || !user || !rejectionReason.trim()) return;
+    
+    setProcessing(true);
+    try {
+      const updatedRequest = await VerificationWorkflowAPI.institutionRejectRequest(
+        selectedRequest,
+        user.id,
+        rejectionReason
+      );
+
+      if (updatedRequest) {
+        setVerificationRequests(prev => 
+          prev.map(req => req.id === selectedRequest ? updatedRequest : req)
+        );
+        setRejectionReason('');
+        setShowRejectionModal(false);
+        alert('Request rejected successfully!');
+      } else {
+        alert('Error rejecting request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      alert('Error rejecting request. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handle final GTEC approval
+  const handleFinalApproval = async () => {
+    if (!selectedRequest || !user) return;
+    
+    setProcessing(true);
+    try {
+      const updatedRequest = await VerificationWorkflowAPI.finalGtecApproval(
+        selectedRequest,
+        user.id,
+        approvalComments
+      );
+
+      if (updatedRequest) {
+        setVerificationRequests(prev => 
+          prev.map(req => req.id === selectedRequest ? updatedRequest : req)
+        );
+        setApprovalComments('');
+        setShowApprovalModal(false);
+        alert('Request completed successfully!');
+      } else {
+        alert('Error completing request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error completing request:', error);
+      alert('Error completing request. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Determine available actions based on user role and request status
+  const getAvailableActions = (request: VerificationRequest) => {
+    const actions = [];
+
+    if (isGTECAdmin || isBacCheckerAdmin) {
+      if (request.overall_status === 'submitted') {
+        actions.push({ type: 'gtec_approve', label: 'Approve & Forward to Institution' });
+        actions.push({ type: 'gtec_reject', label: 'Reject' });
+      } else if (request.overall_status === 'institution_approved') {
+        actions.push({ type: 'final_approve', label: 'Final Approval' });
+        actions.push({ type: 'gtec_reject', label: 'Reject' });
+      }
+    } else if (isTertiaryUser) {
+      if (request.overall_status === 'gtec_approved') {
+        actions.push({ type: 'institution_approve', label: 'Approve' });
+        actions.push({ type: 'institution_reject', label: 'Reject' });
+      }
+    }
+
+    return actions;
+  };
+
+  const handleAction = (actionType: string) => {
+    switch (actionType) {
+      case 'gtec_approve':
+      case 'institution_approve':
+      case 'final_approve':
+        setShowApprovalModal(true);
+        break;
+      case 'gtec_reject':
+      case 'institution_reject':
+        setShowRejectionModal(true);
+        break;
+    }
+  };
+
+  const executeApproval = () => {
+    if (!selectedRequestData) return;
+
+    const status = selectedRequestData.overall_status;
+    
+    if ((isGTECAdmin || isBacCheckerAdmin) && status === 'submitted') {
+      handleGTECApproval();
+    } else if ((isGTECAdmin || isBacCheckerAdmin) && status === 'institution_approved') {
+      handleFinalApproval();
+    } else if (isTertiaryUser && status === 'gtec_approved') {
+      handleInstitutionApproval();
+    }
+  };
+
+  const executeRejection = () => {
+    if (!selectedRequestData) return;
+
+    if ((isGTECAdmin || isBacCheckerAdmin)) {
+      handleGTECRejection();
+    } else if (isTertiaryUser) {
+      handleInstitutionRejection();
+    }
+  };
+
+  if (loading && !refreshing) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading verification requests...</p>
+        </div>
       </div>
     );
   }
@@ -401,803 +319,370 @@ export function DocumentVerification() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Document Verification System</h1>
           <p className="text-gray-600">
-            {isGTECAdmin ? 'Manage verification requests across all institutions' : 'Submit and track verification requests'}
+            {isGTECAdmin || isBacCheckerAdmin 
+              ? 'Review and approve verification requests from institutions' 
+              : 'Process verification requests forwarded to your institution'}
           </p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={loadData}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={loading || refreshing}
+          >
+            <option value="all">All Statuses</option>
+            <option value="submitted">Submitted</option>
+            <option value="gtec_approved">GTEC Approved</option>
+            <option value="institution_approved">Institution Approved</option>
+            <option value="pending_final_approval">Pending Final Approval</option>
+          </select>
+          <Button variant="outline" onClick={refreshData} disabled={loading || refreshing}>
+            {refreshing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
             Refresh
           </Button>
-          {!isGTECAdmin && (
-            <Button onClick={() => setShowNewRequestModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Verification Request
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <tab.icon className="h-4 w-4" />
-              <span>{tab.name}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Requests List */}
+        <div className="lg:col-span-1">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Verification Requests ({verificationRequests.length})
+                {refreshing && (
+                  <Loader2 className="h-4 w-4 ml-2 animate-spin inline" />
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {verificationRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedRequest === request.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setSelectedRequest(request.id)}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-sm">{request.request_number}</span>
+                      <Badge variant={VerificationWorkflowAPI.getStatusColor(request.overall_status) as any}>
+                        {VerificationWorkflowAPI.getStatusDisplayName(request.overall_status)}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-1">{request.student_name}</p>
+                    <p className="text-xs text-gray-500">
+                      {VerificationWorkflowAPI.getInstitutionName(request.target_institution_id)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(request.submitted_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
 
-      {/* Verification Requests Tab */}
-      {activeTab === 'requests' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Requests List */}
-          <div className="lg:col-span-1">
+                {verificationRequests.length === 0 && !loading && (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No requests to review</p>
+                    <p className="text-sm text-gray-400">
+                      {isGTECAdmin || isBacCheckerAdmin 
+                        ? 'All verification requests are up to date'
+                        : 'No requests have been forwarded to your institution'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Request Details */}
+        <div className="lg:col-span-2">
+          {selectedRequestData ? (
             <Card>
               <CardHeader>
-                <CardTitle>Verification Requests ({verificationRequests.length})</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Request Details</CardTitle>
+                  <div className="flex space-x-2">
+                    {getAvailableActions(selectedRequestData).map((action) => (
+                      <Button
+                        key={action.type}
+                        variant={action.type.includes('approve') ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleAction(action.type)}
+                        disabled={processing}
+                        className={action.type.includes('reject') ? 'border-red-500 text-red-600 hover:bg-red-50' : ''}
+                      >
+                        {processing ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : action.type.includes('approve') ? (
+                          <ThumbsUp className="h-4 w-4 mr-2" />
+                        ) : (
+                          <ThumbsDown className="h-4 w-4 mr-2" />
+                        )}
+                        {action.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {verificationRequests.map((request) => (
-                    <div
-                      key={request.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        selectedRequest === request.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => setSelectedRequest(request.id)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(request.overall_status)}
-                          <span className="font-medium text-gray-900">{request.request_number}</span>
-                        </div>
-                        {getStatusBadge(request.overall_status)}
+                <div className="space-y-6">
+                  {/* Basic Information */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Request Number</label>
+                      <p className="text-gray-900">{selectedRequestData.request_number}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Status</label>
+                      <Badge variant={VerificationWorkflowAPI.getStatusColor(selectedRequestData.overall_status) as any}>
+                        {VerificationWorkflowAPI.getStatusDisplayName(selectedRequestData.overall_status)}
+                      </Badge>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Student Name</label>
+                      <p className="text-gray-900">{selectedRequestData.student_name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Student ID</label>
+                      <p className="text-gray-900">{selectedRequestData.student_id || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Program</label>
+                      <p className="text-gray-900">{selectedRequestData.program_name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Target Institution</label>
+                      <p className="text-gray-900">
+                        {VerificationWorkflowAPI.getInstitutionName(selectedRequestData.target_institution_id)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Verification Type</label>
+                      <p className="text-gray-900 capitalize">{selectedRequestData.verification_type.replace('_', ' ')}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Submitted Date</label>
+                      <p className="text-gray-900">{new Date(selectedRequestData.submitted_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+
+                  {/* Progress Timeline */}
+                  <div className="border-t pt-6">
+                    <h4 className="font-semibold text-gray-900 mb-4">Progress Timeline</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="text-sm">Request Submitted</span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(selectedRequestData.submitted_at).toLocaleString()}
+                        </span>
                       </div>
                       
-                      <p className="text-sm font-medium text-gray-900">{request.student_name}</p>
-                      <p className="text-xs text-gray-600">{request.program_name}</p>
+                      {selectedRequestData.gtec_approved_at && (
+                        <div className="flex items-center space-x-3">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <span className="text-sm">GTEC Approved</span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(selectedRequestData.gtec_approved_at).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
                       
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-gray-500">
-                          Phase {request.current_phase}/4
-                        </span>
-                        <Badge variant={request.priority_level === 'urgent' ? 'error' : 'default'} size="sm">
-                          {request.priority_level}
-                        </Badge>
+                      {selectedRequestData.institution_approved_at && (
+                        <div className="flex items-center space-x-3">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <span className="text-sm">Institution Approved</span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(selectedRequestData.institution_approved_at).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {selectedRequestData.completed_at && (
+                        <div className="flex items-center space-x-3">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <span className="text-sm">Completed</span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(selectedRequestData.completed_at).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Additional Information */}
+                  {selectedRequestData.metadata && (
+                    <div className="border-t pt-6">
+                      <h4 className="font-semibold text-gray-900 mb-4">Additional Information</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {selectedRequestData.metadata.purpose && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Purpose</label>
+                            <p className="text-gray-900">{selectedRequestData.metadata.purpose}</p>
+                          </div>
+                        )}
+                        {selectedRequestData.metadata.applicant_email && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Applicant Email</label>
+                            <p className="text-gray-900">{selectedRequestData.metadata.applicant_email}</p>
+                          </div>
+                        )}
+                        {selectedRequestData.metadata.applicant_phone && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Applicant Phone</label>
+                            <p className="text-gray-900">{selectedRequestData.metadata.applicant_phone}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))}
-                  
-                  {verificationRequests.length === 0 && (
-                    <div className="text-center py-8">
-                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500">No verification requests found</p>
+                  )}
+
+                  {/* Rejection Reason */}
+                  {selectedRequestData.rejection_reason && (
+                    <div className="border-t pt-6">
+                      <h4 className="font-semibold text-gray-900 mb-4">Rejection Reason</h4>
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <p className="text-red-800">{selectedRequestData.rejection_reason}</p>
+                      </div>
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Request Details */}
-          <div className="lg:col-span-2">
-            {selectedRequestData ? (
-              <VerificationRequestDetails 
-                request={selectedRequestData}
-                onProcessPhase={handleProcessPhase}
-                onUploadDocument={() => setShowUploadModal(true)}
-                processing={processing}
-                isGTECAdmin={isGTECAdmin}
-                isTertiaryUser={isTertiaryUser}
-              />
-            ) : (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Verification Request</h3>
-                  <p className="text-gray-600">Choose a request from the list to view details and manage the verification process.</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* New Verification Request Modal */}
-      {showNewRequestModal && (
-        <NewVerificationRequestModal
-          institutions={institutions}
-          programs={programs}
-          onSubmit={handleCreateRequest}
-          onClose={() => setShowNewRequestModal(false)}
-          processing={processing}
-        />
-      )}
-
-      {/* Upload Document Modal */}
-      {showUploadModal && selectedRequest && (
-        <UploadDocumentModal
-          requestId={selectedRequest}
-          onUpload={handleUploadDocument}
-          onClose={() => setShowUploadModal(false)}
-          processing={processing}
-        />
-      )}
-      </div>
-  );
-}
-
-// Verification Request Details Component
-function VerificationRequestDetails({ 
-  request, 
-  onProcessPhase, 
-  onUploadDocument, 
-  processing, 
-  isGTECAdmin,
-  isTertiaryUser
-}: {
-  request: VerificationRequest;
-  onProcessPhase: (requestId: string, phase: number) => void;
-  onUploadDocument: () => void;
-  processing: boolean;
-  isGTECAdmin: boolean;
-  isTertiaryUser?: boolean;
-}) {
-  const [phases, setPhases] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<DocumentSubmission[]>([]);
-
-  useEffect(() => {
-    loadRequestDetails();
-  }, [request.id]);
-
-  const loadRequestDetails = async () => {
-    try {
-      // Mock phases for demo
-      const mockPhases = [
-        {
-          id: 'phase-1',
-          phase_number: 1,
-          phase_name: 'GTEC Initial Review',
-          phase_status: request.current_phase >= 1 ? 'completed' : 'in_progress',
-          completed_at: request.current_phase >= 1 ? new Date().toISOString() : null,
-          notes: 'GTEC reviews and approves request for forwarding to institution'
-        },
-        {
-          id: 'phase-2',
-          phase_number: 2,
-          phase_name: 'Institution Processing',
-          phase_status: request.current_phase >= 2 ? 'completed' : request.current_phase === 1 ? 'in_progress' : 'pending',
-          completed_at: request.current_phase >= 2 ? new Date().toISOString() : null,
-          notes: 'Institution verifies documents and processes request'
-        },
-        {
-          id: 'phase-3',
-          phase_number: 3,
-          phase_name: 'GTEC Final Review',
-          phase_status: request.current_phase >= 3 ? 'completed' : request.current_phase === 2 ? 'in_progress' : 'pending',
-          completed_at: request.current_phase >= 3 ? new Date().toISOString() : null,
-          notes: 'GTEC final review and approval for delivery'
-        }
-      ];
-      setPhases(mockPhases);
-      
-      // Mock documents
-      setDocuments([]);
-    } catch (error) {
-      console.error('Error loading request details:', error);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Request Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>{request.request_number}</CardTitle>
-              <p className="text-gray-600">
-                {request.student_name} • {request.program_name}
-              </p>
-            </div>
-            <div className="flex space-x-2">
-              {!isGTECAdmin && (
-                <Button variant="outline" size="sm" onClick={onUploadDocument}>
-                  <Upload className="h-4 w-4 mr-1" />
-                  Upload Document
-                </Button>
-              )}
-              {isTertiaryUser && request.current_phase === 3 && request.overall_status === 'institution_verified' && (
-                <Button size="sm" onClick={() => onProcessPhase(request.id, 3)}>
-                  Process Institution Response
-                </Button>
-              )}
-              <Button variant="outline" size="sm">
-                <Eye className="h-4 w-4 mr-1" />
-                View Report
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-3 bg-gray-50 rounded">
-              <div className="text-2xl font-bold text-gray-900">{request.current_phase}</div>
-              <div className="text-sm text-gray-600">Current Phase</div>
-            </div>
-            <div className="text-center p-3 bg-gray-50 rounded">
-              <div className="text-2xl font-bold text-gray-900">{request.verification_score}</div>
-              <div className="text-sm text-gray-600">Verification Score</div>
-            </div>
-            <div className="text-center p-3 bg-gray-50 rounded">
-              <div className="text-2xl font-bold text-gray-900">{documents.length}</div>
-              <div className="text-sm text-gray-600">Documents</div>
-            </div>
-            <div className="text-center p-3 bg-gray-50 rounded">
-              <Badge variant={request.priority_level === 'urgent' ? 'error' : 'default'}>
-                {request.priority_level}
-              </Badge>
-              <div className="text-sm text-gray-600 mt-1">Priority</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Verification Phases */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Verification Workflow</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {phases.map((phase, index) => (
-              <div key={phase.id} className="relative">
-                {index < phases.length - 1 && (
-                  <div className="absolute left-6 top-12 w-0.5 h-8 bg-gray-300"></div>
-                )}
-                <div className="flex items-start space-x-4">
-                  <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
-                    phase.phase_status === 'completed' ? 'bg-green-100' :
-                    phase.phase_status === 'in_progress' ? 'bg-blue-100' :
-                    phase.phase_status === 'failed' ? 'bg-red-100' : 'bg-gray-100'
-                  }`}>
-                    {phase.phase_status === 'completed' ? (
-                      <CheckCircle className="h-6 w-6 text-green-600" />
-                    ) : phase.phase_status === 'in_progress' ? (
-                      <Clock className="h-6 w-6 text-blue-600" />
-                    ) : phase.phase_status === 'failed' ? (
-                      <XCircle className="h-6 w-6 text-red-600" />
-                    ) : (
-                      <span className="text-gray-600 font-semibold">{phase.phase_number}</span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium text-gray-900">{phase.phase_name}</h4>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={
-                          phase.phase_status === 'completed' ? 'success' :
-                          phase.phase_status === 'in_progress' ? 'info' :
-                          phase.phase_status === 'failed' ? 'error' : 'default'
-                        } size="sm">
-                          {phase.phase_status}
-                        </Badge>
-                        {((isGTECAdmin && [1, 2, 4].includes(phase.phase_number)) || 
-                          (isTertiaryUser && phase.phase_number === 3)) && 
-                         phase.phase_status === 'in_progress' && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => onProcessPhase(request.id, phase.phase_number)}
-                            disabled={processing}
-                          >
-                            {phase.phase_number === 1 && isGTECAdmin ? 'GTEC Review & Approve' :
-                             phase.phase_number === 2 && isTertiaryUser ? 'Institution Process' :
-                             phase.phase_number === 3 && isGTECAdmin ? 'GTEC Final Review' : 'Process'}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    {phase.notes && (
-                      <p className="text-sm text-gray-600 mt-1">{phase.notes}</p>
-                    )}
-                    {phase.completed_at && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Completed: {new Date(phase.completed_at).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
+          ) : (
+            <Card>
+              <CardContent>
+                <div className="text-center py-12">
+                  <Eye className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">Select a request to view details</p>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Documents */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Submitted Documents</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {documents.map((document) => (
-              <div key={document.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <FileText className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium text-gray-900">{document.file_name}</p>
-                    <p className="text-sm text-gray-600">{document.document_type}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant={
-                    document.validation_status === 'valid' ? 'success' :
-                    document.validation_status === 'invalid' ? 'error' :
-                    document.validation_status === 'requires_review' ? 'warning' : 'default'
-                  } size="sm">
-                    {document.validation_status}
-                  </Badge>
-                  <Button variant="ghost" size="sm">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-            
-            {documents.length === 0 && (
-              <div className="text-center py-8">
-                <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No documents uploaded yet</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// New Verification Request Modal
-function NewVerificationRequestModal({ 
-  institutions, 
-  programs, 
-  onSubmit, 
-  onClose, 
-  processing 
-}: {
-  institutions: any[];
-  programs: InstitutionProgram[];
-  onSubmit: (data: any) => void;
-  onClose: () => void;
-  processing: boolean;
-}) {
-  const [formData, setFormData] = useState({
-    target_institution: '',
-    student_name: '',
-    student_id: '',
-    program_name: '',
-    graduation_date: '',
-    verification_type: 'academic_certificate',
-    priority_level: 'normal',
-    purpose: '',
-    notes: ''
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">New Verification Request</h3>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Target Institution *</label>
-              <select 
-                value={formData.target_institution}
-                onChange={(e) => setFormData({...formData, target_institution: e.target.value})}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select institution...</option>
-                {institutions.map(inst => (
-                  <option key={inst.id} value={inst.id}>{inst.name}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Verification Type *</label>
-              <select 
-                value={formData.verification_type}
-                onChange={(e) => setFormData({...formData, verification_type: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="academic_certificate">Academic Certificate</option>
-                <option value="transcript">Official Transcript</option>
-                <option value="diploma">Diploma Verification</option>
-                <option value="degree">Degree Verification</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Student Name *</label>
-              <input 
-                type="text"
-                value={formData.student_name}
-                onChange={(e) => setFormData({...formData, student_name: e.target.value})}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Student ID</label>
-              <input 
-                type="text"
-                value={formData.student_id}
-                onChange={(e) => setFormData({...formData, student_id: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Program Name *</label>
-              <input 
-                type="text"
-                value={formData.program_name}
-                onChange={(e) => setFormData({...formData, program_name: e.target.value})}
-                required
-                placeholder="e.g., Bachelor of Science in Computer Science"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Graduation Date</label>
-              <input 
-                type="date"
-                value={formData.graduation_date}
-                onChange={(e) => setFormData({...formData, graduation_date: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Priority Level</label>
-              <select 
-                value={formData.priority_level}
-                onChange={(e) => setFormData({...formData, priority_level: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Purpose</label>
-              <input 
-                type="text"
-                value={formData.purpose}
-                onChange={(e) => setFormData({...formData, purpose: e.target.value})}
-                placeholder="e.g., Employment verification"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
-            <textarea 
-              value={formData.notes}
-              onChange={(e) => setFormData({...formData, notes: e.target.value})}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button variant="outline" onClick={onClose} disabled={processing}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={processing}>
-              {processing ? 'Creating...' : 'Create Request'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Upload Document Modal
-function UploadDocumentModal({ 
-  requestId, 
-  onUpload, 
-  onClose, 
-  processing 
-}: {
-  requestId: string;
-  onUpload: (requestId: string, file: File, documentType: string) => void;
-  onClose: () => void;
-  processing: boolean;
-}) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [documentType, setDocumentType] = useState('transcript');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedFile) {
-      onUpload(requestId, selectedFile, documentType);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Upload Document</h3>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
-            <select 
-              value={documentType}
-              onChange={(e) => setDocumentType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="transcript">Official Transcript</option>
-              <option value="certificate">Certificate</option>
-              <option value="diploma">Diploma</option>
-              <option value="id_document">ID Document</option>
-              <option value="supporting_document">Supporting Document</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select File</label>
-            <input 
-              type="file"
-              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-              accept=".pdf,.jpg,.jpeg,.png"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Supported formats: PDF, JPG, PNG (max 10MB)
-            </p>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button variant="outline" onClick={onClose} disabled={processing}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={processing || !selectedFile}>
-              {processing ? 'Uploading...' : 'Upload Document'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Pending Reports Component
-function PendingReports({ 
-  requests, 
-  onGenerateReport, 
-  isGTECAdmin 
-}: {
-  requests: VerificationRequest[];
-  onGenerateReport: (requestId: string, reportType: 'standard' | 'detailed' | 'summary') => void;
-  isGTECAdmin: boolean;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Pending Report Generation ({requests.length})</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {requests.map((request) => (
-            <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-900">{request.request_number}</p>
-                <p className="text-sm text-gray-600">{request.student_name} • {request.program_name}</p>
-                <p className="text-xs text-gray-500">
-                  Completed: {request.completed_at ? new Date(request.completed_at).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-              <div className="flex space-x-2">
-                {isGTECAdmin && (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => onGenerateReport(request.id, 'summary')}
-                    >
-                      Summary
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => onGenerateReport(request.id, 'standard')}
-                    >
-                      Standard
-                    </Button>
-                    <Button 
-                      size="sm"
-                      onClick={() => onGenerateReport(request.id, 'detailed')}
-                    >
-                      Detailed
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-          
-          {requests.length === 0 && (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No pending reports</p>
-              <p className="text-sm text-gray-400">All completed verifications have reports generated</p>
-            </div>
+              </CardContent>
+            </Card>
           )}
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Workflow Guide Modal
-function WorkflowGuideModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-gray-900">GTEC Verification Workflow</h3>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <div className="space-y-6">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h4 className="font-semibold text-blue-900 mb-2">Complete End-to-End Verification Process</h4>
-            <p className="text-blue-700">
-              This system demonstrates the complete GTEC document verification workflow from initial submission 
-              to final report delivery. Each phase has specific validation criteria and can be processed live.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="border border-green-200 rounded-lg p-4 bg-green-50">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</div>
-                  <h5 className="font-semibold text-green-900">Initial Processing</h5>
-                </div>
-                <p className="text-green-700 text-sm">
-                  • Document upload and format validation<br/>
-                  • Completeness assessment<br/>
-                  • Automatic flagging system<br/>
-                  • Pass threshold: 70%
-                </p>
-              </div>
-
-              <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
-                  <h5 className="font-semibold text-blue-900">Institution Verification</h5>
-                </div>
-                <p className="text-blue-700 text-sm">
-                  • 4-Point Check System<br/>
-                  • Accreditation status validation<br/>
-                  • Program authorization matching<br/>
-                  • Pass threshold: 75% → Forward to Institution
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="border border-purple-200 rounded-lg p-4 bg-purple-50">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</div>
-                  <h5 className="font-semibold text-purple-900">Document Authentication</h5>
-                </div>
-                <p className="text-purple-700 text-sm">
-                  • Institution processes the request<br/>
-                  • Grade and date validation<br/>
-                  • Academic record verification<br/>
-                  • Pass threshold: 80%
-                </p>
-              </div>
-
-              <div className="border border-orange-200 rounded-lg p-4 bg-orange-50">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-6 h-6 bg-orange-600 text-white rounded-full flex items-center justify-center text-sm font-bold">4</div>
-                  <h5 className="font-semibold text-orange-900">GTEC Quality Assurance</h5>
-                </div>
-                <p className="text-orange-700 text-sm">
-                  • Fraud registry cross-checking<br/>
-                  • Security feature validation<br/>
-                  • Final manual review<br/>
-                  • Pass threshold: 85% → Generate Report
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-semibold text-gray-900 mb-3">Demo Instructions</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <h5 className="font-medium text-gray-900 mb-2">For GTEC Admins:</h5>
-                <ul className="space-y-1 text-gray-700">
-                  <li>• Process Phase 1, 2, and 4</li>
-                  <li>• Monitor all verification requests</li>
-                  <li>• Generate final reports</li>
-                  <li>• Manage fraud investigations</li>
-                </ul>
-              </div>
-              <div>
-                <h5 className="font-medium text-gray-900 mb-2">For Institution Users:</h5>
-                <ul className="space-y-1 text-gray-700">
-                  <li>• Submit verification requests</li>
-                  <li>• Upload supporting documents</li>
-                  <li>• Process Phase 3 (when forwarded)</li>
-                  <li>• Track verification status</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <h4 className="font-semibold text-green-900 mb-2">Live Demo Ready</h4>
-            <p className="text-green-700 text-sm">
-              The system is fully functional and can process verification requests end-to-end. 
-              Create a new request, upload documents, and watch it progress through all 4 phases 
-              with real scoring and validation at each step.
-            </p>
-          </div>
-        </div>
       </div>
+
+      {/* Approval Modal */}
+      {showApprovalModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Approve Request</h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowApprovalModal(false)} disabled={processing}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comments (Optional)
+                </label>
+                <textarea
+                  value={approvalComments}
+                  onChange={(e) => setApprovalComments(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Add any comments or notes..."
+                  disabled={processing}
+                />
+              </div>
+              
+              <div className="flex space-x-3">
+                <Button 
+                  onClick={executeApproval}
+                  disabled={processing}
+                  className="flex-1"
+                >
+                  {processing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Approve'
+                  )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowApprovalModal(false)}
+                  className="flex-1"
+                  disabled={processing}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {showRejectionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Reject Request</h3>
+              <Button variant="ghost" size="sm" onClick={() => setShowRejectionModal(false)} disabled={processing}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for Rejection <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  rows={3}
+                  placeholder="Please provide a reason for rejection..."
+                  required
+                  disabled={processing}
+                />
+              </div>
+              
+              <div className="flex space-x-3">
+                <Button 
+                  onClick={executeRejection}
+                  disabled={processing || !rejectionReason.trim()}
+                  variant="outline"
+                  className="flex-1 border-red-500 text-red-600 hover:bg-red-50"
+                >
+                  {processing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Reject'
+                  )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowRejectionModal(false)}
+                  className="flex-1"
+                  disabled={processing}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+// src/App.tsx - REPLACE ENTIRE FILE
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -48,6 +49,7 @@ import SettingsBaccheckerAdmin from './pages/admin/SettingsBaccheckerAdmin';
 import SettingsGTECAdmin from './pages/admin/SettingsGTECAdmin';
 import { TertiaryOnboarding } from './pages/TertiaryOnboarding';
 import { PublicPortal } from './pages/PublicPortal';
+import { UserRequestStatus } from './pages/UserRequestStatus';
 
 // Placeholder components for other routes
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -121,13 +123,14 @@ function AdminRoutes() {
   );
 }
 
-// User Routes Component
+// User Routes Component - FIXED WITH VERIFICATION ROUTE
 function UserRoutes() {
   return (
     <UserLayout>
       <Routes>
         <Route path="/" element={<UserDashboard />} />
         <Route path="/verifications" element={<UserVerifications />} />
+        <Route path="/verification" element={<DocumentVerification />} />
         <Route path="/profile" element={<UserProfile />} />
         <Route path="/help" element={<UserHelp />} />
         <Route path="/settings" element={<UserSettings />} />
@@ -170,21 +173,6 @@ function InstitutionApp() {
     return (
       <div className="min-h-screen bg-gray-50">
         <OnboardingWizard />
-        {/* Demo skip button for testing */}
-        <div className="fixed bottom-4 right-4 z-50">
-          <button
-            onClick={() => {
-              if (authState.user?.institutionId) {
-                const onboardingKey = `onboarding_completed_${authState.user.institutionId}`;
-                localStorage.setItem(onboardingKey, 'true');
-                setShowOnboarding(false);
-              }
-            }}
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-gray-700 transition-colors text-sm"
-          >
-            Skip to Dashboard (Demo)
-          </button>
-        </div>
       </div>
     );
   }
@@ -193,33 +181,43 @@ function InstitutionApp() {
     <Layout>
       <Routes>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/institutions" element={<InstitutionsManagement />} />
-        <Route path="/courses" element={<Courses />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/registries" element={<Registries />} />
+        <Route path="/services" element={<Services />} />
         <Route path="/requests" element={<Requests />} />
-        <Route path="/templates" element={<DocumentTemplates />} />
         <Route path="/users" element={<Users />} />
         <Route path="/api" element={<ApiValidation />} />
-        <Route path="/analytics" element={<PlaceholderPage title="Analytics Dashboard" />} />
+        <Route path="/templates" element={<DocumentTemplates />} />
         <Route path="/settings" element={<InstitutionSettings />} />
-        <Route path="/help" element={<UserHelp />} />
+        <Route path="/courses" element={<Courses />} />
       </Routes>
     </Layout>
   );
 }
 
-// Main App Content
+// Main App Content Component
 function AppContent() {
   const { state } = useAuth();
+  
+  if (state.isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-  if (!state.isAuthenticated) {
-    return <Login />;
+  if (!state.user) {
+    return <Navigate to="/login" replace />;
   }
 
   // Route based on user role
   if (state.user?.role === 'bacchecker_admin' || state.user?.role === 'gtec_admin') {
     return <AdminRoutes />;
   } else if (state.user?.role === 'tertiary_institution_user') {
-    // Skip onboarding for tertiary institution users
     return <UserRoutes />;
   } else if (state.user?.role === 'institution_admin') {
     return (
@@ -229,8 +227,6 @@ function AppContent() {
         </Routes>
       </OnboardingProvider>
     );
-  } else if (state.user?.role === 'institution_user') {
-    return <UserRoutes />;
   }
 
   // Fallback for unknown roles
@@ -257,13 +253,13 @@ function App() {
             } />
             <Route path="/onboarding/:token" element={<TertiaryOnboarding />} />
             <Route path="/public" element={<PublicPortal />} />
+            <Route path="/check-status" element={<UserRequestStatus />} />
             <Route path="/settings" element={
               <ProtectedRoute allowedRoles={['bacchecker_admin', 'gtec_admin', 'tertiary_institution_user', 'institution_admin']}>
                 <InstitutionSettings />
               </ProtectedRoute>
             } />
             <Route path="/*" element={<AppContent />} />
-            <Route path="/user/document-verification" element={<DocumentVerification />} />
           </Routes>
         </Router>
       </AppProvider>
