@@ -1,0 +1,14 @@
+# Netlify redirects file for SPA routing
+/*    /index.html   200
+
+# Specific routes that should work without authentication
+/public    /index.html   200
+/public/*  /index.html   200
+/onboarding/*  /index.html   200
+/check-status  /index.html   200
+
+# API routes (if any)
+/api/*  /api/:splat  200
+
+# Default fallback
+/*  /index.html  200

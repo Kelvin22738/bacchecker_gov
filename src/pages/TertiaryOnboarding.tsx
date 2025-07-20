@@ -115,11 +115,12 @@ export function TertiaryOnboarding() {
   });
 
   useEffect(() => {
-    if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+    if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '' && token !== ':token') {
       loadInstitution();
     } else {
+      console.error('Invalid token:', token);
       setLoading(false);
-      navigate('/');
+      // Don't navigate immediately, show error message instead
     }
   }, [token]);
 

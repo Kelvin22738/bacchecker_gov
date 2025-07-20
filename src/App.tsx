@@ -253,6 +253,7 @@ function App() {
             } />
             <Route path="/onboarding/:token" element={<TertiaryOnboarding />} />
             <Route path="/public" element={<PublicPortal />} />
+            <Route path="/public/*" element={<PublicPortal />} />
             <Route path="/check-status" element={<UserRequestStatus />} />
             <Route path="/settings" element={
               <ProtectedRoute allowedRoles={['bacchecker_admin', 'gtec_admin', 'tertiary_institution_user', 'institution_admin']}>
