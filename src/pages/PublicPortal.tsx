@@ -130,12 +130,12 @@ export function PublicPortal() {
   ];
 
   const institutions = [
-    { id: 'ug', name: 'University of Ghana' },
-    { id: 'knust', name: 'KNUST' },
-    { id: 'ucc', name: 'University of Cape Coast' },
-    { id: 'gps', name: 'Ghana Police Service' },
-    { id: 'hcg', name: 'High Court of Ghana' },
-    { id: 'moe', name: 'Ministry of Education' }
+    { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', name: 'University of Ghana' },
+    { id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', name: 'KNUST' },
+    { id: 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15', name: 'University of Cape Coast' },
+    { id: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', name: 'Ghana Police Service' },
+    { id: 'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a16', name: 'High Court of Ghana' },
+    { id: 'g0eebc99-9c0b-4ef8-bb6d-6bb9bd380a17', name: 'Ministry of Education' }
   ];
 
   const handleSubmitRequest = async (formData: any) => {
@@ -146,7 +146,7 @@ export function PublicPortal() {
       // Create request for backend systems
       const backendRequest = {
         request_number: requestNumber,
-        requesting_institution_id: 'public',
+        requesting_institution_id: '00000000-0000-0000-0000-000000000001',
         target_institution_id: getInstitutionId(formData.targetInstitution),
         student_name: formData.applicantName,
         student_id: formData.idNumber,
@@ -211,14 +211,14 @@ export function PublicPortal() {
 
   const getInstitutionId = (institutionName: string) => {
     const mapping: { [key: string]: string } = {
-      'University of Ghana': 'ug',
-      'KNUST': 'knust',
-      'University of Cape Coast': 'ucc',
-      'Ghana Police Service': 'gps',
-      'High Court of Ghana': 'hcg',
-      'Ministry of Education': 'moe'
+      'University of Ghana': 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
+      'KNUST': 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13',
+      'University of Cape Coast': 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15',
+      'Ghana Police Service': 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14',
+      'High Court of Ghana': 'f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a16',
+      'Ministry of Education': 'g0eebc99-9c0b-4ef8-bb6d-6bb9bd380a17'
     };
-    return mapping[institutionName] || 'unknown';
+    return mapping[institutionName] || '00000000-0000-0000-0000-000000000000';
   };
 
   const handleTrackRequest = () => {
@@ -496,6 +496,8 @@ export function PublicPortal() {
           onTrack={handleTrackRequest}
           onClose={() => setShowTrackingModal(false)}
           trackedRequest={trackedRequest}
+          copiedTracking={copiedTracking}
+          handleCopyTracking={handleCopyTracking}
         />
       )}
     </div>
@@ -723,13 +725,17 @@ function TrackingModal({
   setTrackingNumber, 
   onTrack, 
   onClose, 
-  trackedRequest 
+  trackedRequest,
+  copiedTracking,
+  handleCopyTracking
 }: {
   trackingNumber: string;
   setTrackingNumber: (value: string) => void;
   onTrack: () => void;
   onClose: () => void;
   trackedRequest: PublicRequest | null;
+  copiedTracking: boolean;
+  handleCopyTracking: (trackingNumber: string) => void;
 }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
