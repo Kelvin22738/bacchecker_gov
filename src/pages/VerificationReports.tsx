@@ -23,6 +23,31 @@ import {
 } from 'lucide-react';
 import { verificationReportsAPI, verificationRequestsAPI, VerificationReport, VerificationRequest } from '../utils/verificationAPI';
 
+function getOutcomeBadge(outcome: string) {
+  switch (outcome) {
+    case 'verified':
+      return <Badge variant="success">Verified</Badge>;
+    case 'not_verified':
+      return <Badge variant="error">Not Verified</Badge>;
+    case 'fraudulent':
+      return <Badge variant="error">Fraudulent</Badge>;
+    default:
+      return <Badge variant="warning">Inconclusive</Badge>;
+  }
+}
+
+function getOutcomeIcon(outcome: string) {
+  switch (outcome) {
+    case 'verified':
+      return <CheckCircle className="h-4 w-4 text-green-600" />;
+    case 'not_verified':
+    case 'fraudulent':
+      return <XCircle className="h-4 w-4 text-red-600" />;
+    default:
+      return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
+  }
+}
+
 export function VerificationReports() {
   const { state } = useAuth();
   const { user } = state;
@@ -134,31 +159,6 @@ export function VerificationReports() {
   const selectedReportData = selectedReport 
     ? reports.find(r => r.id === selectedReport)
     : null;
-
-  function getOutcomeBadge(outcome: string) {
-    switch (outcome) {
-      case 'verified':
-        return <Badge variant="success">Verified</Badge>;
-      case 'not_verified':
-        return <Badge variant="error">Not Verified</Badge>;
-      case 'fraudulent':
-        return <Badge variant="error">Fraudulent</Badge>;
-      default:
-        return <Badge variant="warning">Inconclusive</Badge>;
-    }
-  }
-
-  function getOutcomeIcon(outcome: string) {
-    switch (outcome) {
-      case 'verified':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'not_verified':
-      case 'fraudulent':
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      default:
-        return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-    }
-  }
 
   const completedRequests = requests.filter(r => r.overall_status === 'completed');
   const verificationStats = {
