@@ -138,7 +138,7 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card hover className="relative overflow-hidden">
+        {/* <Card hover className="relative overflow-hidden">
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-yellow-500/10 to-yellow-600/10 rounded-full -mr-10 -mt-10" />
           <CardContent className="relative">
             <div className="flex items-center justify-between">
@@ -155,7 +155,7 @@ export function AdminDashboard() {
               </div>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         <Card hover className="relative overflow-hidden">
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-500/10 to-purple-600/10 rounded-full -mr-10 -mt-10" />

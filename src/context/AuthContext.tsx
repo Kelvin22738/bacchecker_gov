@@ -75,22 +75,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date('2024-01-01'),
       avatar: '/GTEC-LOGO-removebg-preview.png'
     },
-    {
-      id: 'gps-admin',
-      email: 'admin@police.gov.gh',
-      name: 'Ghana Police Service Admin',
-      role: 'institution_admin',
-      institutionId: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14',
-      permissions: ['manage_profile', 'manage_services', 'process_requests', 'view_analytics', 'manage_templates', 'manage_users'],
-      createdAt: new Date('2024-01-01'),
-      avatar: '/image.png'
-    },
+    // {
+    //   id: 'gps-admin',
+    //   email: 'admin@police.gov.gh',
+    //   name: 'Ghana Police Service Admin',
+    //   role: 'institution_admin',
+    //   institutionId: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14',
+    //   permissions: ['manage_profile', 'manage_services', 'process_requests', 'view_analytics', 'manage_templates', 'manage_users'],
+    //   createdAt: new Date('2024-01-01'),
+    //   avatar: '/image.png'
+    // },
     {
       id: 'ug-admin',
       email: 'admin@ug.edu.gh',
       name: 'University of Ghana Admin',
       role: 'tertiary_institution_user',
-      institutionId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
+      institutionId: '5610c1e8-941a-4f51-ab77-882656fd7f17',
       permissions: ['manage_profile', 'upload_documents', 'manage_courses', 'view_analytics'],
       createdAt: new Date('2024-01-01'),
       avatar: '/GTEC-LOGO-removebg-preview.png'
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: 'admin@knust.edu.gh',
       name: 'KNUST Administrator',
       role: 'tertiary_institution_user',
-      institutionId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13',
+      institutionId: '066613d3-0837-49e9-82c2-23d1caa1df11',
       permissions: ['manage_profile', 'upload_documents', 'manage_courses', 'view_analytics'],
       createdAt: new Date('2024-01-01'),
       avatar: '/GTEC-LOGO-removebg-preview.png'

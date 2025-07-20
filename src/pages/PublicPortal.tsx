@@ -635,11 +635,11 @@ export function PublicPortal() {
                     <div className="flex items-center space-x-3">
                       <Building2 className="h-8 w-8 text-blue-500" />
                       <div>
-                        <h4 className="font-semibold text-gray-900">{institution.name}</h4>
-                        <p className="text-sm text-gray-600">
-                          {institution.acronym && `${institution.acronym} • `}
-                          {institution.institution_type?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'University'}
-                        </p>
+                      <h4 className="font-semibold text-gray-900">{institution.name}</h4>
+                      <p className="text-sm text-gray-600">
+                        {institution.acronym && `${institution.acronym} • `}
+                        Educational Institution
+                      </p>
                       </div>
                     </div>
                   </div>

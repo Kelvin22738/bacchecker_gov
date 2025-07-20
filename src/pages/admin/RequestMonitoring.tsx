@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Filter,
@@ -24,10 +25,30 @@ import {
 import { VerificationWorkflowAPI } from '../../utils/verificationWorkflowAPI';
 import { VerificationRequest } from '../../types/verification';
 
+// Define institutions array based on actual database institution IDs
+const institutions = [
+  {
+    id: '5610c1e8-941a-4f51-ab77-882656fd7f17',
+    name: 'University of Ghana'
+  },
+  {
+    id: '066613d3-0837-49e9-82c2-23d1caa1df11',
+    name: 'KNUST'
+  },
+  {
+    id: '2d78f1ff-bc42-460b-bbf3-2fb61eb8ca9f',
+    name: 'University of Cape Coast'
+  },
+  {
+    id: '2f3dcc21-8fa2-4788-921e-9b1825fd7835',
+    name: 'Emmanuel University'
+  }
+];
+
 export function RequestMonitoring() {
   const { state } = useAuth();
   const { user } = state;
-  
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [selectedInstitution, setSelectedInstitution] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -40,13 +61,15 @@ export function RequestMonitoring() {
   const isBacCheckerAdmin = user?.role === 'bacchecker_admin';
 
   // Institution options for filtering
-  const institutions = [
-    { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', name: 'University of Ghana' },
-    { id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', name: 'KNUST' },
-    { id: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', name: 'Ghana Police Service' },
-    { id: 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15', name: 'High Court of Ghana'
-    }
-  ];
+  const getInstitutionName = (institutionId: string) => {
+    const mapping = {
+      '5610c1e8-941a-4f51-ab77-882656fd7f17': 'University of Ghana',
+      '066613d3-0837-49e9-82c2-23d1caa1df11': 'KNUST',
+      '2d78f1ff-bc42-460b-bbf3-2fb61eb8ca9f': 'University of Cape Coast',
+      '2f3dcc21-8fa2-4788-921e-9b1825fd7835': 'Emmanuel University'
+    };
+    return mapping[institutionId] || 'Educational Institution';
+  };
 
   // Load all requests
   const loadRequests = async () => {
@@ -63,7 +86,9 @@ export function RequestMonitoring() {
 
       // Filter by status if selected
       if (selectedStatus !== 'all') {
-        allRequests = allRequests.filter(req => req.overall_status === selectedStatus);
+        allRequests = allRequests.filter(req => 
+          req.overall_status === selectedStatus || req.metadata?.workflow_step === selectedStatus
+        );
       }
 
       // Filter by search query
@@ -100,11 +125,12 @@ export function RequestMonitoring() {
   const stats = {
     total: requests.length,
     submitted: requests.filter(r => r.overall_status === 'submitted').length,
-    gtecApproved: requests.filter(r => r.overall_status === 'gtec_approved').length,
-    institutionApproved: requests.filter(r => r.overall_status === 'institution_approved').length,
+    gtecApproved: requests.filter(r => r.metadata?.workflow_step === 'gtec_approved').length,
+    institutionApproved: requests.filter(r => r.metadata?.workflow_step === 'institution_approved').length,
     completed: requests.filter(r => r.overall_status === 'completed').length,
     rejected: requests.filter(r => 
-      r.overall_status === 'gtec_rejected' || r.overall_status === 'institution_rejected'
+      r.overall_status === 'rejected' || 
+      ['gtec_rejected', 'institution_rejected'].includes(r.metadata?.workflow_step)
     ).length,
   };
 
@@ -115,7 +141,8 @@ export function RequestMonitoring() {
       ...institution,
       requestCount: institutionRequests.length,
       pendingCount: institutionRequests.filter(req => 
-        ['submitted', 'gtec_approved', 'institution_approved'].includes(req.overall_status)
+        ['submitted', 'processing', 'institution_verified', 'document_authenticated', 'quality_review'].includes(req.overall_status) &&
+        !['completed', 'gtec_rejected', 'institution_rejected'].includes(req.metadata?.workflow_step)
       ).length,
       completedCount: institutionRequests.filter(req => req.overall_status === 'completed').length
     };
@@ -134,9 +161,9 @@ export function RequestMonitoring() {
       ...requests.map(req => [
         req.request_number,
         req.student_name,
-        VerificationWorkflowAPI.getInstitutionName(req.target_institution_id),
+        getInstitutionName(req.target_institution_id),
         req.program_name,
-        VerificationWorkflowAPI.getStatusDisplayName(req.overall_status),
+        VerificationWorkflowAPI.getStatusDisplayName(req.overall_status, req.metadata),
         new Date(req.submitted_at).toLocaleDateString(),
         req.metadata?.applicant_email || ''
       ].join(','))
@@ -353,11 +380,15 @@ export function RequestMonitoring() {
               >
                 <option value="all">All Statuses</option>
                 <option value="submitted">Submitted</option>
+                <option value="processing">Processing</option>
                 <option value="gtec_approved">GTEC Approved</option>
+                <option value="institution_verified">Institution Verified</option>
                 <option value="institution_approved">Institution Approved</option>
+                <option value="document_authenticated">Document Authenticated</option>
+                <option value="quality_review">Quality Review</option>
                 <option value="completed">Completed</option>
-                <option value="gtec_rejected">GTEC Rejected</option>
-                <option value="institution_rejected">Institution Rejected</option>
+                <option value="rejected">Rejected</option>
+                <option value="flagged">Flagged</option>
               </select>
             </div>
 
@@ -429,7 +460,7 @@ export function RequestMonitoring() {
                       </td>
                       <td className="py-3 px-4">
                         <span className="text-gray-900">
-                          {VerificationWorkflowAPI.getInstitutionName(request.target_institution_id)}
+                          {getInstitutionName(request.target_institution_id)}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -441,8 +472,8 @@ export function RequestMonitoring() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <Badge variant={VerificationWorkflowAPI.getStatusColor(request.overall_status) as any}>
-                          {VerificationWorkflowAPI.getStatusDisplayName(request.overall_status)}
+                        <Badge variant={VerificationWorkflowAPI.getStatusColor(request.overall_status, request.metadata) as any}>
+                          {VerificationWorkflowAPI.getStatusDisplayName(request.overall_status, request.metadata)}
                         </Badge>
                       </td>
                       <td className="py-3 px-4">
@@ -535,7 +566,7 @@ export function RequestMonitoring() {
                 <div>
                   <label className="text-sm font-medium text-gray-700">Target Institution</label>
                   <p className="text-gray-900">
-                    {VerificationWorkflowAPI.getInstitutionName(selectedRequestData.target_institution_id)}
+                    {getInstitutionName(selectedRequestData.target_institution_id)}
                   </p>
                 </div>
                 <div>
@@ -617,7 +648,7 @@ export function RequestMonitoring() {
 
             {/* Action Button */}
             <div className="mt-6 flex justify-end">
-              <Button onClick={() => window.location.href = '/admin/verification'}>
+              <Button onClick={() => navigate('/admin/verification', { state: { selectedRequestId: selectedRequestData.id } })}>
                 Go to Verification System
               </Button>
             </div>
