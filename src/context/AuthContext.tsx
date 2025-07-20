@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: 'admin@gtec.edu.gh',
       name: 'GTEC Administrator',
       role: 'gtec_admin',
-      institutionId: 'gtec',
+      institutionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       permissions: ['view_all_institutions', 'manage_institutions', 'view_all_requests', 'system_analytics', 'manage_settings'],
       createdAt: new Date('2024-01-01'),
       avatar: '/GTEC-LOGO-removebg-preview.png'
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: 'admin@police.gov.gh',
       name: 'Ghana Police Service Admin',
       role: 'institution_admin',
-      institutionId: 'gps',
+      institutionId: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14',
       permissions: ['manage_profile', 'manage_services', 'process_requests', 'view_analytics', 'manage_templates', 'manage_users'],
       createdAt: new Date('2024-01-01'),
       avatar: '/image.png'
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: 'admin@ug.edu.gh',
       name: 'University of Ghana Admin',
       role: 'tertiary_institution_user',
-      institutionId: 'ug',
+      institutionId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
       permissions: ['manage_profile', 'upload_documents', 'manage_courses', 'view_analytics'],
       createdAt: new Date('2024-01-01'),
       avatar: '/GTEC-LOGO-removebg-preview.png'
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: 'admin@knust.edu.gh',
       name: 'KNUST Administrator',
       role: 'tertiary_institution_user',
-      institutionId: 'knust',
+      institutionId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13',
       permissions: ['manage_profile', 'upload_documents', 'manage_courses', 'view_analytics'],
       createdAt: new Date('2024-01-01'),
       avatar: '/GTEC-LOGO-removebg-preview.png'

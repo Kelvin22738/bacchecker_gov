@@ -75,7 +75,7 @@ export interface MasterUser {
 // Master Data Sets
 export const masterInstitutions: MasterInstitution[] = [
   {
-    id: "gtec",
+    id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
     name: "Ghana Tertiary Education Commission",
     acronym: "GTEC",
     description: "Regulatory body for tertiary education in Ghana.",
@@ -93,7 +93,7 @@ export const masterInstitutions: MasterInstitution[] = [
     accentColor: "#fafafa"
   },
   {
-    id: "ug",
+    id: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
     name: "University of Ghana",
     acronym: "UG",
     description: "Premier university in Ghana offering undergraduate and graduate programs.",
@@ -111,7 +111,7 @@ export const masterInstitutions: MasterInstitution[] = [
     accentColor: "#fafafa"
   },
   {
-    id: "knust",
+    id: "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13",
     name: "Kwame Nkrumah University of Science and Technology",
     acronym: "KNUST",
     description: "Leading technological university in Ghana.",
@@ -129,7 +129,7 @@ export const masterInstitutions: MasterInstitution[] = [
     accentColor: "#fafafa"
   },
   {
-    id: "gps",
+    id: "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14",
     name: "Ghana Police Service",
     acronym: "GPS",
     description: "National police service responsible for law enforcement in Ghana.",
@@ -151,7 +151,7 @@ export const masterInstitutions: MasterInstitution[] = [
 export const masterServices: MasterService[] = [
   {
     id: "gtec_accreditation",
-    institution_id: "gtec",
+    institution_id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
     name: "Institution Accreditation",
     description: "Accreditation verification for tertiary institutions",
     category: "Accreditation",
@@ -163,7 +163,7 @@ export const masterServices: MasterService[] = [
   },
   {
     id: "ug_transcript",
-    institution_id: "ug",
+    institution_id: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
     name: "Official Transcript",
     description: "Official academic transcript verification",
     category: "Academic Documents",
@@ -175,7 +175,7 @@ export const masterServices: MasterService[] = [
   },
   {
     id: "knust_certificate",
-    institution_id: "knust",
+    institution_id: "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13",
     name: "Degree Certificate Verification",
     description: "Verification of degree certificates",
     category: "Academic Verification",
@@ -187,7 +187,7 @@ export const masterServices: MasterService[] = [
   },
   {
     id: "gps_clearance",
-    institution_id: "gps",
+    institution_id: "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14",
     name: "Police Clearance Certificate",
     description: "Issuance of police clearance certificates for background checks.",
     category: "Clearance",
@@ -212,7 +212,7 @@ export const masterRequests: MasterRequest[] = [
       'Bolgatanga Technical University', 'Koforidua Technical University', 'Takoradi Technical University', 'Cape Coast Technical University', 'Wa Technical University',
       'Ghana Communication Technology University', 'University of Professional Studies', 'University of Development Studies', 'University of Energy', 'Academic City University'
     ][i],
-    institution_id: 'gtec',
+    institution_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     service_id: 'gtec_accreditation',
     submittedDate: new Date(2024, 5, Math.floor(Math.random() * 30) + 1).toISOString(),
     status: ['Under Review', 'Pending Approval', 'Completed', 'Rejected', 'Submitted'][i % 5] as any,
@@ -257,7 +257,7 @@ export const masterRequests: MasterRequest[] = [
       'Aba Adjei', 'Nana Owusu', 'Ama Frimpong', 'Kofi Darko', 'Akosua Kumi',
       'Kwame Amponsah', 'Adjoa Osei', 'Emmanuel Nkrumah', 'Grace Adjei', 'David Kusi'
     ][i],
-    institution_id: 'ug',
+    institution_id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
     service_id: 'ug_transcript',
     submittedDate: new Date(2024, 5, Math.floor(Math.random() * 30) + 1).toISOString(),
     status: ['Under Review', 'Pending Approval', 'Completed', 'Rejected', 'Submitted'][i % 5] as any,
@@ -302,7 +302,7 @@ export const masterRequests: MasterRequest[] = [
       'Adjoa Osei', 'Fiifi Asante', 'Araba Mensah', 'Koku Boateng', 'Aba Adjei',
       'Nana Owusu', 'Ama Frimpong', 'Kofi Darko', 'Akosua Kumi', 'Kwame Amponsah'
     ][i],
-    institution_id: 'knust',
+    institution_id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13',
     service_id: 'knust_certificate',
     submittedDate: new Date(2024, 5, Math.floor(Math.random() * 30) + 1).toISOString(),
     status: ['Under Review', 'Pending Approval', 'Completed', 'Rejected', 'Submitted'][i % 5] as any,
@@ -347,7 +347,7 @@ export const masterRequests: MasterRequest[] = [
       'Aba Adjei', 'Nana Owusu', 'Ama Frimpong', 'Kofi Darko', 'Akosua Kumi',
       'Kwame Amponsah', 'Adjoa Osei', 'Emmanuel Nkrumah', 'Grace Adjei', 'David Kusi'
     ][i],
-    institution_id: 'gps',
+    institution_id: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14',
     service_id: 'gps_clearance',
     submittedDate: new Date(2024, 5, Math.floor(Math.random() * 30) + 1).toISOString(),
     status: ['Under Review', 'Pending Approval', 'Completed', 'Rejected', 'Submitted'][i % 5] as any,
@@ -388,7 +388,7 @@ export const masterUsers: MasterUser[] = [
     name: "GTEC Administrator",
     email: "admin@gtec.edu.gh",
     role: "GTEC Admin",
-    institution_id: "gtec",
+    institution_id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
     status: "Active",
     lastLogin: "2024-06-25T10:30:00Z",
     avatar: "/GTEC-LOGO-removebg-preview.png"
@@ -398,7 +398,7 @@ export const masterUsers: MasterUser[] = [
     name: "Dr. Nana Aba Appiah Amfo",
     email: "admin@ug.edu.gh",
     role: "Tertiary Institution User",
-    institution_id: "ug",
+    institution_id: "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
     status: "Active",
     lastLogin: "2024-06-25T09:15:00Z",
     avatar: "/GTEC-LOGO-removebg-preview.png"
@@ -408,7 +408,7 @@ export const masterUsers: MasterUser[] = [
     name: "Prof. Kwasi Obiri-Danso",
     email: "admin@knust.edu.gh",
     role: "Tertiary Institution User",
-    institution_id: "knust",
+    institution_id: "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13",
     status: "Active",
     lastLogin: "2024-06-25T08:45:00Z",
     avatar: "/GTEC-LOGO-removebg-preview.png"
@@ -418,7 +418,7 @@ export const masterUsers: MasterUser[] = [
     name: "Superintendent Kofi Owusu",
     email: "admin@police.gov.gh",
     role: "Institution Admin",
-    institution_id: "gps",
+    institution_id: "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14",
     status: "Active",
     lastLogin: "2024-06-25T11:00:00Z",
     avatar: "/GTEC-LOGO-removebg-preview.png"
