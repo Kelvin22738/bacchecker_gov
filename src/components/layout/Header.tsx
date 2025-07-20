@@ -107,8 +107,8 @@ export function Header({ onToggleSidebar }: HeaderProps) {
 
         {/* Right Section */}
         <div className="flex items-center space-x-4">
-          {/* Institution Selector - Only show for GTEC and BacChecker admins */}
-          {currentInstitution && (user?.role === 'gtec_admin' || user?.role === 'bacchecker_admin') && user?.role !== 'institution_admin' && (
+          {/* Institution Selector - Only show for BacChecker admins, not GTEC */}
+          {currentInstitution && user?.role === 'bacchecker_admin' && (
             <div className="relative">
               <button
                 onClick={() => setShowInstitutionMenu(!showInstitutionMenu)}

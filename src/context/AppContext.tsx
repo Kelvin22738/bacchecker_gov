@@ -134,9 +134,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_API_KEYS', payload: mockData.apiKeys });
     dispatch({ type: 'SET_TEMPLATES', payload: mockData.templates });
     
-    // Set default user and institution (Police by default)
+    // Don't set default institution for GTEC admins
     dispatch({ type: 'SET_USER', payload: mockData.users[0] });
-    dispatch({ type: 'SET_CURRENT_INSTITUTION', payload: mockData.institutions[0] });
+    // Only set current institution for BacChecker admins
+    // GTEC admins should not have a current institution selected
   }, []);
 
   return (
