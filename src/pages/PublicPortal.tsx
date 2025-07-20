@@ -797,6 +797,7 @@ function TrackingModal({
                   { phase: 1, name: 'GTEC Initial Review', completed: trackedRequest.currentPhase >= 1 },
                   { phase: 2, name: 'Institution Processing', completed: trackedRequest.currentPhase >= 2 },
                   { phase: 3, name: 'GTEC Final Review', completed: trackedRequest.currentPhase >= 3 }
+                ].map((step) => (
                   <div key={step.phase} className="flex items-center space-x-3">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
                       step.completed ? 'bg-green-100' : 'bg-gray-100'
