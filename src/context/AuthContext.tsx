@@ -118,25 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       if (authError) {
-        // If user doesn't exist in Supabase auth, try to sign them up first
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: credentials.email,
-          password: credentials.password
-        });
-        
-        if (signUpError) {
-          throw new Error('Authentication failed');
-        }
-        
-        // Now try to sign in again
-        const { data: retryAuthData, error: retryAuthError } = await supabase.auth.signInWithPassword({
-          email: credentials.email,
-          password: credentials.password
-        });
-        
-        if (retryAuthError) {
-          throw new Error('Authentication failed after signup');
-        }
+        throw new Error('Invalid email or password');
       }
       
       // Find the mock user data for the authenticated email
