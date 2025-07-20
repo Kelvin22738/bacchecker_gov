@@ -26,11 +26,7 @@ export const verificationRequestsAPI = {
   async getAll() {
     const { data, error } = await supabase
       .from('verification_requests')
-      .select(`
-        *,
-        requesting_institution:requesting_institution_id(name, acronym),
-        target_institution:target_institution_id(name, acronym)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
     
     if (error) throw error;
@@ -40,11 +36,7 @@ export const verificationRequestsAPI = {
   async getByInstitution(institutionId: string) {
     const { data, error } = await supabase
       .from('verification_requests')
-      .select(`
-        *,
-        requesting_institution:requesting_institution_id(name, acronym),
-        target_institution:target_institution_id(name, acronym)
-      `)
+      .select('*')
       .or(`requesting_institution_id.eq.${institutionId},target_institution_id.eq.${institutionId}`)
       .order('created_at', { ascending: false });
     

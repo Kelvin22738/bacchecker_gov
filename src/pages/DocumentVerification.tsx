@@ -59,19 +59,31 @@ export function DocumentVerification() {
     try {
       setLoading(true);
       
-      // Load verification requests
+      // Load institutions first for mapping
+      let institutionsData: any[] = [];
       if (isGTECAdmin) {
-        const requests = await verificationRequestsAPI.getAll();
-        setVerificationRequests(requests);
-      } else if (user?.institutionId) {
-        const requests = await verificationRequestsAPI.getByInstitution(user.institutionId);
-        setVerificationRequests(requests);
+        institutionsData = await tertiaryInstitutionAPI.getAll();
+        setInstitutions(institutionsData);
       }
 
-      // Load institutions for GTEC admin
+      // Load verification requests
+      let requests: VerificationRequest[] = [];
       if (isGTECAdmin) {
-        const institutionsData = await tertiaryInstitutionAPI.getAll();
-        setInstitutions(institutionsData);
+        requests = await verificationRequestsAPI.getAll();
+      } else if (user?.institutionId) {
+        requests = await verificationRequestsAPI.getByInstitution(user.institutionId);
+      }
+
+      // Map institution details to requests
+      if (institutionsData.length > 0) {
+        const requestsWithInstitutions = requests.map(request => ({
+          ...request,
+          requesting_institution: institutionsData.find(inst => inst.id === request.requesting_institution_id),
+          target_institution: institutionsData.find(inst => inst.id === request.target_institution_id)
+        }));
+        setVerificationRequests(requestsWithInstitutions);
+      } else {
+        setVerificationRequests(requests);
       }
 
       // Load programs for tertiary users
