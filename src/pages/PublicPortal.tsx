@@ -241,13 +241,11 @@ export function PublicPortal() {
       case 'completed':
         return <Badge variant="success">Completed</Badge>;
       case 'gtec_approved':
-        return <Badge variant="info">GTEC Approved</Badge>;
-      case 'institution_processed':
-        return <Badge variant="warning">Under GTEC Review</Badge>;
       case 'processing':
-        return <Badge variant="info">Processing</Badge>;
+        return <Badge variant="info">Approved</Badge>;
+      case 'institution_processed':
       case 'institution_verified':
-        return <Badge variant="warning">Under Review</Badge>;
+        return <Badge variant="warning">Review</Badge>;
       case 'rejected':
         return <Badge variant="error">Rejected</Badge>;
       default:
@@ -260,14 +258,13 @@ export function PublicPortal() {
       case 'completed':
         return <CheckCircle className="h-4 w-4 text-green-600" />;
       case 'gtec_approved':
+      case 'processing':
         return <CheckCircle className="h-4 w-4 text-blue-600" />;
       case 'institution_processed':
+      case 'institution_verified':
         return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
       case 'rejected':
         return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'processing':
-      case 'institution_verified':
-        return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
       default:
         return <Clock className="h-4 w-4 text-blue-600" />;
     }
@@ -412,12 +409,12 @@ export function PublicPortal() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                   <div className="text-center p-3 bg-white rounded">
-                    <div className="text-lg font-bold text-green-900">{requests[0].currentPhase}/4</div>
-                    <div className="text-sm text-green-700">Phases Complete</div>
+                    <div className="text-lg font-bold text-green-900">{requests[0].verificationScore}%</div>
+                    <div className="text-sm text-green-700">Complete</div>
                   </div>
                   <div className="text-center p-3 bg-white rounded">
-                    <div className="text-lg font-bold text-green-900">{requests[0].verificationScore}%</div>
-                    <div className="text-sm text-green-700">Verification Score</div>
+                    <div className="text-lg font-bold text-green-900">{requests[0].currentPhase}/3</div>
+                    <div className="text-sm text-green-700">Phases</div>
                   </div>
                   <div className="text-center p-3 bg-white rounded">
                     <div className="text-lg font-bold text-green-900">{requests[0].documents.length}</div>
@@ -471,7 +468,7 @@ export function PublicPortal() {
                     </div>
                     <div className="text-right">
                       {getStatusBadge(request.status)}
-                      <p className="text-xs text-gray-500 mt-1">Phase {request.currentPhase}/4</p>
+                      <p className="text-xs text-gray-500 mt-1">{request.verificationScore}% Complete</p>
                     </div>
                   </div>
                 ))}
@@ -777,12 +774,12 @@ function TrackingModal({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="text-center p-3 bg-gray-50 rounded">
-                  <div className="text-lg font-bold text-gray-900">{trackedRequest.currentPhase}/3</div>
-                  <div className="text-sm text-gray-600">Phases Complete</div>
+                  <div className="text-lg font-bold text-gray-900">{trackedRequest.verificationScore}%</div>
+                  <div className="text-sm text-gray-600">Complete</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded">
-                  <div className="text-lg font-bold text-gray-900">{trackedRequest.verificationScore}%</div>
-                  <div className="text-sm text-gray-600">Verification Score</div>
+                  <div className="text-lg font-bold text-gray-900">{trackedRequest.currentPhase}/3</div>
+                  <div className="text-sm text-gray-600">Phases</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded">
                   <div className="text-lg font-bold text-gray-900">{trackedRequest.documents.length}</div>
@@ -794,9 +791,10 @@ function TrackingModal({
               <div className="space-y-3 mb-6">
                 <h5 className="font-medium text-gray-900">Verification Progress</h5>
                 {[
-                  { phase: 1, name: 'GTEC Initial Review', completed: trackedRequest.currentPhase >= 1 },
-                  { phase: 2, name: 'Institution Processing', completed: trackedRequest.currentPhase >= 2 },
-                  { phase: 3, name: 'GTEC Final Review', completed: trackedRequest.currentPhase >= 3 }
+                  { phase: 1, name: 'Submitted', completed: trackedRequest.currentPhase >= 1 },
+                  { phase: 2, name: 'Approved', completed: trackedRequest.currentPhase >= 2 },
+                  { phase: 3, name: 'Review', completed: trackedRequest.currentPhase >= 3 },
+                  { phase: 4, name: 'Completed', completed: trackedRequest.status === 'completed' }
                 ].map((step) => (
                   <div key={step.phase} className="flex items-center space-x-3">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
