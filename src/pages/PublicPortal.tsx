@@ -240,6 +240,10 @@ export function PublicPortal() {
     switch (status) {
       case 'completed':
         return <Badge variant="success">Completed</Badge>;
+      case 'gtec_approved':
+        return <Badge variant="info">GTEC Approved</Badge>;
+      case 'institution_processed':
+        return <Badge variant="warning">Under GTEC Review</Badge>;
       case 'processing':
         return <Badge variant="info">Processing</Badge>;
       case 'institution_verified':
@@ -255,6 +259,10 @@ export function PublicPortal() {
     switch (status) {
       case 'completed':
         return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'gtec_approved':
+        return <CheckCircle className="h-4 w-4 text-blue-600" />;
+      case 'institution_processed':
+        return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
       case 'rejected':
         return <XCircle className="h-4 w-4 text-red-600" />;
       case 'processing':
@@ -769,7 +777,7 @@ function TrackingModal({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="text-center p-3 bg-gray-50 rounded">
-                  <div className="text-lg font-bold text-gray-900">{trackedRequest.currentPhase}/4</div>
+                  <div className="text-lg font-bold text-gray-900">{trackedRequest.currentPhase}/3</div>
                   <div className="text-sm text-gray-600">Phases Complete</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded">
@@ -786,11 +794,9 @@ function TrackingModal({
               <div className="space-y-3 mb-6">
                 <h5 className="font-medium text-gray-900">Verification Progress</h5>
                 {[
-                  { phase: 1, name: 'Initial Processing', completed: trackedRequest.currentPhase >= 1 },
-                  { phase: 2, name: 'Institution Verification', completed: trackedRequest.currentPhase >= 2 },
-                  { phase: 3, name: 'Document Authentication', completed: trackedRequest.currentPhase >= 3 },
-                  { phase: 4, name: 'Quality Assurance', completed: trackedRequest.currentPhase >= 4 }
-                ].map((step) => (
+                  { phase: 1, name: 'GTEC Initial Review', completed: trackedRequest.currentPhase >= 1 },
+                  { phase: 2, name: 'Institution Processing', completed: trackedRequest.currentPhase >= 2 },
+                  { phase: 3, name: 'GTEC Final Review', completed: trackedRequest.currentPhase >= 3 }
                   <div key={step.phase} className="flex items-center space-x-3">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
                       step.completed ? 'bg-green-100' : 'bg-gray-100'

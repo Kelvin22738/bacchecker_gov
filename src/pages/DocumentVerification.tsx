@@ -244,17 +244,35 @@ export function DocumentVerification() {
     try {
       setProcessing(true);
       
-      // Mock phase processing with realistic scoring
-      const score = Math.floor(Math.random() * 30) + 70; // 70-100 range
-      const passed = score >= (phase === 1 ? 70 : phase === 2 ? 75 : phase === 3 ? 80 : 85);
+      // Phase-specific processing logic
+      let score = Math.floor(Math.random() * 30) + 70; // 70-100 range
+      let passed = false;
+      let newStatus = '';
+      let shouldForwardToInstitution = false;
       
-      // Update the request in state
+      if (phase === 1 && isGTECAdmin) {
+        // GTEC Initial Review - approve to forward to institution
+        passed = score >= 70;
+        newStatus = passed ? 'gtec_approved' : 'rejected';
+        shouldForwardToInstitution = passed;
+      } else if (phase === 2 && isTertiaryUser) {
+        // Institution processing
+        passed = score >= 75;
+        newStatus = passed ? 'institution_processed' : 'rejected';
+      } else if (phase === 3 && isGTECAdmin) {
+        // GTEC Final Review
+        passed = score >= 80;
+        newStatus = passed ? 'completed' : 'rejected';
+      } else {
+        // Default processing
+        passed = score >= (phase === 1 ? 70 : phase === 2 ? 75 : phase === 3 ? 80 : 85);
+        newStatus = passed ? 'processing' : 'rejected';
+      }
+      
+      // Update the request in state and localStorage
       setVerificationRequests(prev => prev.map(req => {
         if (req.id === requestId) {
-          const newPhase = passed ? Math.min(4, req.current_phase + 1) : req.current_phase;
-          const newStatus = newPhase === 4 && passed ? 'completed' : 
-                           newPhase === 3 ? 'institution_verified' :
-                           newPhase === 2 ? 'processing' : 'submitted';
+          const newPhase = passed ? Math.min(3, req.current_phase + 1) : req.current_phase;
           
           return {
             ...req,
@@ -267,18 +285,43 @@ export function DocumentVerification() {
         return req;
       }));
 
+      // Update public portal requests if this is a public request
+      const publicRequests = localStorage.getItem('public_verification_requests');
+      if (publicRequests) {
+        try {
+          const parsed = JSON.parse(publicRequests);
+          const updatedPublicRequests = parsed.map((req: any) => {
+            if (req.id === requestId || req.requestNumber === requestId) {
+              return {
+                ...req,
+                status: newStatus,
+                currentPhase: passed ? Math.min(3, req.currentPhase + 1) : req.currentPhase,
+                verificationScore: score,
+                lastUpdated: new Date().toISOString()
+              };
+            }
+            return req;
+          });
+          localStorage.setItem('public_verification_requests', JSON.stringify(updatedPublicRequests));
+        } catch (error) {
+          console.error('Error updating public requests:', error);
+        }
+      }
+
       const result = { success: passed, score };
       
       if (result?.success) {
-        if (phase === 2 && result.forwardToInstitution) {
-          alert(`Phase ${phase} completed successfully! Request has been forwarded to the target institution for processing. Score: ${result.score}`);
-        } else if (phase === 4) {
-          alert(`Verification completed! Final score: ${result.score}. Report is ready for delivery.`);
+        if (phase === 1 && isGTECAdmin && shouldForwardToInstitution) {
+          alert(`GTEC Initial Review completed! Request approved and forwarded to target institution for processing. Score: ${score}`);
+        } else if (phase === 2 && isTertiaryUser) {
+          alert(`Institution processing completed! Request sent back to GTEC for final review. Score: ${score}`);
+        } else if (phase === 3 && isGTECAdmin) {
+          alert(`GTEC Final Review completed! Verification approved and ready for delivery. Score: ${score}`);
         } else {
-          alert(`Phase ${phase} completed successfully! Score: ${result.score}. Moving to next phase.`);
+          alert(`Phase ${phase} completed successfully! Score: ${score}. Moving to next phase.`);
         }
       } else {
-        alert(`Phase ${phase} failed. Score too low: ${result.score}. Minimum required: ${phase === 1 ? 70 : phase === 2 ? 75 : phase === 3 ? 80 : 85}`);
+        alert(`Phase ${phase} failed. Score too low: ${score}. Request rejected.`);
       }
     } catch (error) {
       console.error('Error processing phase:', error);
@@ -297,6 +340,10 @@ export function DocumentVerification() {
     switch (status) {
       case 'completed':
         return <Badge variant="success">Completed</Badge>;
+      case 'gtec_approved':
+        return <Badge variant="info">GTEC Approved</Badge>;
+      case 'institution_processed':
+        return <Badge variant="warning">Institution Processed</Badge>;
       case 'processing':
         return <Badge variant="info">Processing</Badge>;
       case 'quality_review':
@@ -314,6 +361,10 @@ export function DocumentVerification() {
     switch (status) {
       case 'completed':
         return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'gtec_approved':
+        return <CheckCircle className="h-4 w-4 text-blue-600" />;
+      case 'institution_processed':
+        return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
       case 'rejected':
       case 'flagged':
         return <XCircle className="h-4 w-4 text-red-600" />;
@@ -514,12 +565,37 @@ function VerificationRequestDetails({
 
   const loadRequestDetails = async () => {
     try {
-      const [phasesData, documentsData] = await Promise.all([
-        verificationPhasesAPI.getByRequest(request.id),
-        documentSubmissionsAPI.getByRequest(request.id)
-      ]);
-      setPhases(phasesData);
-      setDocuments(documentsData);
+      // Mock phases for demo
+      const mockPhases = [
+        {
+          id: 'phase-1',
+          phase_number: 1,
+          phase_name: 'GTEC Initial Review',
+          phase_status: request.current_phase >= 1 ? 'completed' : 'in_progress',
+          completed_at: request.current_phase >= 1 ? new Date().toISOString() : null,
+          notes: 'GTEC reviews and approves request for forwarding to institution'
+        },
+        {
+          id: 'phase-2',
+          phase_number: 2,
+          phase_name: 'Institution Processing',
+          phase_status: request.current_phase >= 2 ? 'completed' : request.current_phase === 1 ? 'in_progress' : 'pending',
+          completed_at: request.current_phase >= 2 ? new Date().toISOString() : null,
+          notes: 'Institution verifies documents and processes request'
+        },
+        {
+          id: 'phase-3',
+          phase_number: 3,
+          phase_name: 'GTEC Final Review',
+          phase_status: request.current_phase >= 3 ? 'completed' : request.current_phase === 2 ? 'in_progress' : 'pending',
+          completed_at: request.current_phase >= 3 ? new Date().toISOString() : null,
+          notes: 'GTEC final review and approval for delivery'
+        }
+      ];
+      setPhases(mockPhases);
+      
+      // Mock documents
+      setDocuments([]);
     } catch (error) {
       console.error('Error loading request details:', error);
     }
@@ -627,7 +703,9 @@ function VerificationRequestDetails({
                             onClick={() => onProcessPhase(request.id, phase.phase_number)}
                             disabled={processing}
                           >
-                            {phase.phase_number === 3 && isTertiaryUser ? 'Verify & Respond' : 'Process'}
+                            {phase.phase_number === 1 && isGTECAdmin ? 'GTEC Review & Approve' :
+                             phase.phase_number === 2 && isTertiaryUser ? 'Institution Process' :
+                             phase.phase_number === 3 && isGTECAdmin ? 'GTEC Final Review' : 'Process'}
                           </Button>
                         )}
                       </div>
