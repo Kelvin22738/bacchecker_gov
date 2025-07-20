@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { Switch } from '../../components/ui/switch';
+import { Switch } from '../../components/ui/Switch';
 import { Settings as SettingsIcon, Shield, Bell, Save, UserPlus, Building, Trash2, Edit, Plus, X, Loader2, Users } from 'lucide-react';
 import { UserManagementAPI, GtecUser, Department } from '../../utils/UserManagementAPI';
 import { SystemSettingsAPI, SystemSettings, NotificationSettings } from '../../utils/SystemSettingsAPI';
