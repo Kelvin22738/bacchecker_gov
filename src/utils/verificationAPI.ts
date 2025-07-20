@@ -614,7 +614,7 @@ export const workflowEngine = {
       dates_consistent: dateScore >= 90,
       enrollment_dates: 'Valid',
       graduation_dates: 'Valid'
-  },
+    };
   },
   async checkComplianceHistory(institutionId: string) {
     // Simulate compliance history check
