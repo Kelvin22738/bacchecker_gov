@@ -14,7 +14,9 @@ import {
   FileCheck,
   CreditCard,
   HelpCircle,
-  Settings
+  Settings,
+  Database,
+  AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
@@ -50,6 +52,26 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       name: 'Request Monitoring',
       href: '/admin/requests',
       icon: FileText
+    },
+    {
+      name: 'Document Verification',
+      href: '/verification',
+      icon: Shield
+    },
+    {
+      name: 'Institution Registry',
+      href: '/institution-registry',
+      icon: Database
+    },
+    {
+      name: 'Fraud Prevention',
+      href: '/fraud-prevention',
+      icon: AlertTriangle
+    },
+    {
+      name: 'Verification Reports',
+      href: '/verification-reports',
+      icon: FileCheck
     },
     {
       name: 'System Analytics',

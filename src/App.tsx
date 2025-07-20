@@ -26,6 +26,12 @@ import { UserProfile } from './pages/user/UserProfile';
 import { UserHelp } from './pages/user/UserHelp';
 import UserSettings from './pages/user/Settings';
 
+// New Verification System Pages
+import { DocumentVerification } from './pages/DocumentVerification';
+import { InstitutionRegistry } from './pages/InstitutionRegistry';
+import { FraudPrevention } from './pages/FraudPrevention';
+import { VerificationReports } from './pages/VerificationReports';
+
 // Admin Pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { InstitutionsManagement } from './pages/admin/InstitutionsManagement';
@@ -252,7 +258,28 @@ function App() {
                 <InstitutionSettings />
               </ProtectedRoute>
             } />
+            <Route path="/verification" element={
+              <ProtectedRoute allowedRoles={['gtec_admin', 'tertiary_institution_user']}>
+                <DocumentVerification />
+              </ProtectedRoute>
+            } />
+            <Route path="/institution-registry" element={
+              <ProtectedRoute allowedRoles={['gtec_admin']}>
+                <InstitutionRegistry />
+              </ProtectedRoute>
+            } />
+            <Route path="/fraud-prevention" element={
+              <ProtectedRoute allowedRoles={['gtec_admin']}>
+                <FraudPrevention />
+              </ProtectedRoute>
+            } />
+            <Route path="/verification-reports" element={
+              <ProtectedRoute allowedRoles={['gtec_admin', 'tertiary_institution_user']}>
+                <VerificationReports />
+              </ProtectedRoute>
+            } />
             <Route path="/*" element={<AppContent />} />
+            <Route path="/user/document-verification" element={<DocumentVerification />} />
           </Routes>
         </Router>
       </AppProvider>
