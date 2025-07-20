@@ -97,7 +97,7 @@ export function Login() {
             <div className="absolute inset-0 bg-black bg-opacity-10"></div>
             <div className="relative z-10">
               <div className="flex items-center mb-8">
-                <img src="/logo.png" alt="BacChecker Logo" className="h-13 w-15 mr-6" />
+                <img src="/logo.png" alt="BacChecker Logo" className="h-12 w-15 mr-4" />
                 <div>
                   <h1 className="text-3xl font-bold">BacChecker</h1>
                   <p className="text-blue-200">Document Verification System</p>
