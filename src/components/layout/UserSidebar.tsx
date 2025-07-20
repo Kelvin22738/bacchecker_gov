@@ -59,7 +59,7 @@ export function UserSidebar({ isOpen, onClose }: UserSidebarProps) {
     {
       name: 'Document Verification',
       href: '/user/document-verification',
-      icon: Shield
+      icon: FileText
     },
     {
       name: 'My Profile',

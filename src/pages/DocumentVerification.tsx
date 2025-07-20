@@ -28,10 +28,12 @@ import {
   documentSubmissionsAPI, 
   institutionProgramsAPI,
   verificationPhasesAPI,
-  workflowEngine
+  workflowEngine,
+  VerificationRequest, 
+  DocumentSubmission, 
+  InstitutionProgram 
 } from '../utils/verificationAPI';
 import { tertiaryInstitutionAPI } from '../utils/supabase';
-import { VerificationRequest, DocumentSubmission, InstitutionProgram } from '../types/verification';
 
 export function DocumentVerification() {
   const { state } = useAuth();
@@ -88,7 +90,11 @@ export function DocumentVerification() {
     try {
       setProcessing(true);
       
+      // Generate unique request number
+      const requestNumber = `VER-${Date.now().toString().slice(-8)}`;
+      
       const newRequest = await verificationRequestsAPI.create({
+        request_number: requestNumber,
         requesting_institution_id: user?.institutionId,
         target_institution_id: formData.target_institution,
         student_name: formData.student_name,
@@ -97,6 +103,9 @@ export function DocumentVerification() {
         graduation_date: formData.graduation_date,
         verification_type: formData.verification_type,
         priority_level: formData.priority_level || 'normal',
+        current_phase: 1,
+        verification_score: 0,
+        fraud_flags: [],
         metadata: {
           purpose: formData.purpose,
           additional_notes: formData.notes
@@ -105,7 +114,7 @@ export function DocumentVerification() {
 
       setVerificationRequests(prev => [newRequest, ...prev]);
       setShowNewRequestModal(false);
-      alert('Verification request created successfully!');
+      alert(`Verification request ${newRequest.request_number} created successfully! The request will now go through our 4-phase verification process.`);
     } catch (error) {
       console.error('Error creating request:', error);
       alert('Error creating verification request. Please try again.');
@@ -156,16 +165,33 @@ export function DocumentVerification() {
   const handleProcessPhase = async (requestId: string, phase: number) => {
     try {
       setProcessing(true);
+      
+      let result;
 
       if (phase === 1) {
         const documents = await documentSubmissionsAPI.getByRequest(requestId);
-        await workflowEngine.processPhase1(requestId, documents);
+        result = await workflowEngine.processPhase1(requestId, documents);
       } else if (phase === 2) {
-        await workflowEngine.processPhase2(requestId);
+        result = await workflowEngine.processPhase2(requestId);
+      } else if (phase === 3) {
+        result = await workflowEngine.processPhase3(requestId);
+      } else if (phase === 4) {
+        result = await workflowEngine.processPhase4(requestId);
       }
 
       loadData();
-      alert(`Phase ${phase} processed successfully!`);
+      
+      if (result?.success) {
+        if (phase === 2 && result.forwardToInstitution) {
+          alert(`Phase ${phase} completed successfully! Request has been forwarded to the target institution for processing. Score: ${result.score}`);
+        } else if (phase === 4) {
+          alert(`Verification completed! Final score: ${result.score}. Report is ready for delivery.`);
+        } else {
+          alert(`Phase ${phase} completed successfully! Score: ${result.score}. Moving to next phase.`);
+        }
+      } else {
+        alert(`Phase ${phase} failed. Reason: ${result?.reason || 'Unknown error'}. Score: ${result?.score || 0}`);
+      }
     } catch (error) {
       console.error('Error processing phase:', error);
       alert('Error processing phase. Please try again.');
@@ -278,6 +304,7 @@ export function DocumentVerification() {
       {/* Verification Requests Tab */}
       {activeTab === 'requests' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+             isTertiaryUser={isTertiaryInstitution}
           {/* Requests List */}
           <div className="lg:col-span-1">
             <Card>
@@ -382,13 +409,15 @@ function VerificationRequestDetails({
   onProcessPhase, 
   onUploadDocument, 
   processing, 
-  isGTECAdmin 
+  isGTECAdmin,
+  isTertiaryUser
 }: {
   request: VerificationRequest;
   onProcessPhase: (requestId: string, phase: number) => void;
   onUploadDocument: () => void;
   processing: boolean;
   isGTECAdmin: boolean;
+  isTertiaryUser?: boolean;
 }) {
   const [phases, setPhases] = useState<any[]>([]);
   const [documents, setDocuments] = useState<DocumentSubmission[]>([]);
@@ -427,6 +456,11 @@ function VerificationRequestDetails({
                 <Button variant="outline" size="sm" onClick={onUploadDocument}>
                   <Upload className="h-4 w-4 mr-1" />
                   Upload Document
+                </Button>
+              )}
+              {isTertiaryUser && request.current_phase === 3 && request.overall_status === 'institution_verified' && (
+                <Button size="sm" onClick={() => onProcessPhase(request.id, 3)}>
+                  Process Institution Response
                 </Button>
               )}
               <Button variant="outline" size="sm">
@@ -499,13 +533,15 @@ function VerificationRequestDetails({
                         } size="sm">
                           {phase.phase_status}
                         </Badge>
-                        {isGTECAdmin && phase.phase_status === 'in_progress' && (
+                        {((isGTECAdmin && [1, 2, 4].includes(phase.phase_number)) || 
+                          (isTertiaryUser && phase.phase_number === 3)) && 
+                         phase.phase_status === 'in_progress' && (
                           <Button 
                             size="sm" 
                             onClick={() => onProcessPhase(request.id, phase.phase_number)}
                             disabled={processing}
                           >
-                            Process
+                            {phase.phase_number === 3 && isTertiaryUser ? 'Verify & Respond' : 'Process'}
                           </Button>
                         )}
                       </div>

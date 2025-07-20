@@ -28,7 +28,6 @@ import UserSettings from './pages/user/Settings';
 
 // New Verification System Pages
 import { DocumentVerification } from './pages/DocumentVerification';
-import { InstitutionRegistry } from './pages/InstitutionRegistry';
 import { FraudPrevention } from './pages/FraudPrevention';
 import { VerificationReports } from './pages/VerificationReports';
 
@@ -91,6 +90,9 @@ function AdminRoutes() {
         />
         <Route path="/requests" element={<RequestMonitoring />} />
         <Route path="/analytics" element={<SystemAnalytics />} />
+        <Route path="/verification" element={<DocumentVerification />} />
+        <Route path="/fraud-prevention" element={<FraudPrevention />} />
+        <Route path="/verification-reports" element={<VerificationReports />} />
         <Route path="/templates" element={
           user?.role === 'bacchecker_admin'
             ? <GlobalTemplatesBaccheckerAdmin />
@@ -261,11 +263,6 @@ function App() {
             <Route path="/verification" element={
               <ProtectedRoute allowedRoles={['gtec_admin', 'tertiary_institution_user']}>
                 <DocumentVerification />
-              </ProtectedRoute>
-            } />
-            <Route path="/institution-registry" element={
-              <ProtectedRoute allowedRoles={['gtec_admin']}>
-                <InstitutionRegistry />
               </ProtectedRoute>
             } />
             <Route path="/fraud-prevention" element={

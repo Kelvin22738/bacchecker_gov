@@ -59,18 +59,13 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       icon: Shield
     },
     {
-      name: 'Institution Registry',
-      href: '/institution-registry',
-      icon: Database
-    },
-    {
       name: 'Fraud Prevention',
-      href: '/fraud-prevention',
+      href: '/admin/fraud-prevention',
       icon: AlertTriangle
     },
     {
       name: 'Verification Reports',
-      href: '/verification-reports',
+      href: '/admin/verification-reports',
       icon: FileCheck
     },
     {

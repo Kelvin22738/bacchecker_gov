@@ -10,6 +10,17 @@ import {
   SystemSetting
 } from '../types/verification';
 
+// Export types for easier importing
+export type {
+  VerificationRequest,
+  DocumentSubmission,
+  InstitutionProgram,
+  VerificationPhase,
+  FraudRegistryEntry,
+  VerificationReport,
+  AuditLog,
+  SystemSetting
+};
 // Verification Requests API
 export const verificationRequestsAPI = {
   async getAll() {
@@ -101,7 +112,7 @@ export const verificationRequestsAPI = {
 
   async advancePhase(requestId: string, currentPhase: number, phaseData: any) {
     // Complete current phase
-    await supabase
+    const { error: updateError } = await supabase
       .from('verification_phases')
       .update({
         phase_status: 'completed',
@@ -111,9 +122,10 @@ export const verificationRequestsAPI = {
       .eq('verification_request_id', requestId)
       .eq('phase_number', currentPhase);
 
+    if (updateError) throw updateError;
     // Start next phase if exists
     if (currentPhase < 4) {
-      await supabase
+      const { error: nextPhaseError } = await supabase
         .from('verification_phases')
         .update({
           phase_status: 'in_progress',
@@ -122,20 +134,25 @@ export const verificationRequestsAPI = {
         .eq('verification_request_id', requestId)
         .eq('phase_number', currentPhase + 1);
 
+      if (nextPhaseError) throw nextPhaseError;
       // Update request current phase
-      await supabase
+      const { error: requestUpdateError } = await supabase
         .from('verification_requests')
         .update({ current_phase: currentPhase + 1 })
         .eq('id', requestId);
+        
+      if (requestUpdateError) throw requestUpdateError;
     } else {
       // All phases complete
-      await supabase
+      const { error: completeError } = await supabase
         .from('verification_requests')
         .update({ 
           overall_status: 'completed',
           completed_at: new Date().toISOString()
         })
         .eq('id', requestId);
+        
+      if (completeError) throw completeError;
     }
   }
 };
