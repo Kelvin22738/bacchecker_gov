@@ -630,3 +630,5 @@ function PendingReports({
     </Card>
   );
 }
+
+export { VerificationReports }
