@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Layout } from '../components/layout/Layout';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -60,51 +59,85 @@ export function DocumentVerification() {
     try {
       setLoading(true);
       
-      // For now, use mock data since database tables don't exist yet
-      const mockRequests: VerificationRequest[] = [
-        {
-          id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
-          request_number: 'VER-12345678',
-          requesting_institution_id: user?.institutionId || 'ug',
-          target_institution_id: 'knust',
-          student_name: 'John Doe',
-          student_id: 'UG123456',
-          program_name: 'Bachelor of Science in Computer Science',
-          graduation_date: '2023-06-15',
-          verification_type: 'academic_certificate',
-          current_phase: 1,
-          overall_status: 'submitted',
-          priority_level: 'normal',
-          verification_score: 0,
-          fraud_flags: [],
-          metadata: { purpose: 'Employment verification' },
-          submitted_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 'b2c3d4e5-f6g7-8901-2345-678901bcdefg',
-          request_number: 'VER-87654321',
-          requesting_institution_id: user?.institutionId || 'ug',
-          target_institution_id: 'ug',
-          student_name: 'Jane Smith',
-          student_id: 'KNUST789',
-          program_name: 'Master of Business Administration',
-          graduation_date: '2022-12-20',
-          verification_type: 'transcript',
-          current_phase: 3,
-          overall_status: 'processing',
-          priority_level: 'high',
-          verification_score: 75,
-          fraud_flags: [],
-          metadata: { purpose: 'Further education' },
-          submitted_at: new Date(Date.now() - 86400000).toISOString(),
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ];
+      // Load requests from backend and localStorage
+      let allRequests: VerificationRequest[] = [];
 
-      setVerificationRequests(mockRequests);
+      try {
+        // Try to load from backend
+        if (isGTECAdmin) {
+          const backendRequests = await verificationRequestsAPI.getAll();
+          allRequests = backendRequests;
+        } else if (user?.institutionId) {
+          const institutionRequests = await verificationRequestsAPI.getByInstitution(user.institutionId);
+          allRequests = institutionRequests;
+        }
+      } catch (error) {
+        console.log('Backend not available, using mock data');
+        
+        // Load from localStorage (public portal requests)
+        const publicRequests = localStorage.getItem('public_verification_requests');
+        if (publicRequests) {
+          try {
+            const parsed = JSON.parse(publicRequests);
+            // Convert public requests to verification requests format
+            allRequests = parsed.map((req: any) => ({
+              id: req.id,
+              request_number: req.requestNumber,
+              requesting_institution_id: 'public',
+              target_institution_id: getInstitutionId(req.targetInstitution),
+              student_name: req.applicantName,
+              student_id: req.idNumber,
+              program_name: req.programName || 'N/A',
+              graduation_date: req.graduationDate || null,
+              verification_type: req.verificationType,
+              current_phase: req.currentPhase,
+              overall_status: req.status,
+              priority_level: 'normal',
+              verification_score: req.verificationScore,
+              fraud_flags: [],
+              metadata: {
+                purpose: req.purpose,
+                applicant_email: req.applicantEmail,
+                applicant_phone: req.applicantPhone,
+                source: 'public_portal'
+              },
+              submitted_at: req.submittedAt,
+              created_at: req.submittedAt,
+              updated_at: new Date().toISOString()
+            }));
+          } catch (parseError) {
+            console.error('Error parsing public requests:', parseError);
+          }
+        }
+        
+        // Add some demo requests if none exist
+        if (allRequests.length === 0) {
+          allRequests = [
+            {
+              id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+              request_number: 'VER-12345678',
+              requesting_institution_id: user?.institutionId || 'ug',
+              target_institution_id: 'knust',
+              student_name: 'John Doe',
+              student_id: 'UG123456',
+              program_name: 'Bachelor of Science in Computer Science',
+              graduation_date: '2023-06-15',
+              verification_type: 'academic_certificate',
+              current_phase: 1,
+              overall_status: 'submitted',
+              priority_level: 'normal',
+              verification_score: 0,
+              fraud_flags: [],
+              metadata: { purpose: 'Employment verification' },
+              submitted_at: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          ];
+        }
+      }
+
+      setVerificationRequests(allRequests);
 
       // Mock institutions data
       const mockInstitutions = [
@@ -134,6 +167,18 @@ export function DocumentVerification() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getInstitutionId = (institutionName: string) => {
+    const mapping: { [key: string]: string } = {
+      'University of Ghana': 'ug',
+      'KNUST': 'knust',
+      'University of Cape Coast': 'ucc',
+      'Ghana Police Service': 'gps',
+      'High Court of Ghana': 'hcg',
+      'Ministry of Education': 'moe'
+    };
+    return mapping[institutionName] || 'unknown';
   };
 
   const handleCreateRequest = async (formData: any) => {
@@ -299,8 +344,7 @@ export function DocumentVerification() {
   }
 
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -442,7 +486,6 @@ export function DocumentVerification() {
         />
       )}
       </div>
-    </Layout>
   );
 }
 

@@ -268,17 +268,23 @@ function App() {
             } />
             <Route path="/verification" element={
               <ProtectedRoute allowedRoles={['gtec_admin', 'tertiary_institution_user']}>
-                <DocumentVerification />
+                <Layout>
+                  <DocumentVerification />
+                </Layout>
               </ProtectedRoute>
             } />
             <Route path="/fraud-prevention" element={
               <ProtectedRoute allowedRoles={['gtec_admin']}>
-                <FraudPrevention />
+                <Layout>
+                  <FraudPrevention />
+                </Layout>
               </ProtectedRoute>
             } />
             <Route path="/verification-reports" element={
               <ProtectedRoute allowedRoles={['gtec_admin', 'tertiary_institution_user']}>
-                <VerificationReports />
+                <Layout>
+                  <VerificationReports />
+                </Layout>
               </ProtectedRoute>
             } />
             <Route path="/*" element={<AppContent />} />

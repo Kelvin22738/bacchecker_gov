@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { verificationRequestsAPI } from '../utils/verificationAPI';
 import {
   FileText,
   Upload,
@@ -23,7 +24,9 @@ import {
   Plus,
   X,
   Send,
-  RefreshCw
+  RefreshCw,
+  Copy,
+  Check
 } from 'lucide-react';
 
 interface PublicRequest {
@@ -64,36 +67,28 @@ export function PublicPortal() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackedRequest, setTrackedRequest] = useState<PublicRequest | null>(null);
   const [requests, setRequests] = useState<PublicRequest[]>([
-    {
-      id: 'req-demo-1',
-      requestNumber: 'VER-PUB-001',
-      applicantName: 'John Doe',
-      applicantEmail: 'john.doe@email.com',
-      applicantPhone: '+233-24-123-4567',
-      idNumber: 'GHA-123456789-1',
-      verificationType: 'academic_certificate',
-      targetInstitution: 'University of Ghana',
-      programName: 'Bachelor of Science in Computer Science',
-      graduationDate: '2023-06-15',
-      purpose: 'Employment verification',
-      status: 'completed',
-      currentPhase: 4,
-      verificationScore: 92,
-      submittedAt: new Date(Date.now() - 172800000).toISOString(),
-      completedAt: new Date().toISOString(),
-      documents: [
-        { id: 'doc-1', name: 'certificate.pdf', type: 'Academic Certificate', uploadedAt: new Date(Date.now() - 172800000).toISOString() },
-        { id: 'doc-2', name: 'transcript.pdf', type: 'Official Transcript', uploadedAt: new Date(Date.now() - 172800000).toISOString() },
-        { id: 'doc-3', name: 'id_card.pdf', type: 'ID Document', uploadedAt: new Date(Date.now() - 172800000).toISOString() }
-      ],
-      finalReport: {
-        outcome: 'verified',
-        confidence: 92,
-        reportUrl: '/reports/VER-PUB-001.pdf',
-        generatedAt: new Date().toISOString()
+  ]);
+  const [copiedTracking, setCopiedTracking] = useState(false);
+
+  // Load existing requests from localStorage on mount
+  React.useEffect(() => {
+    const savedRequests = localStorage.getItem('public_verification_requests');
+    if (savedRequests) {
+      try {
+        const parsed = JSON.parse(savedRequests);
+        setRequests(parsed);
+      } catch (error) {
+        console.error('Error loading saved requests:', error);
       }
     }
-  ]);
+  }, []);
+
+  // Save requests to localStorage whenever requests change
+  React.useEffect(() => {
+    if (requests.length > 0) {
+      localStorage.setItem('public_verification_requests', JSON.stringify(requests));
+    }
+  }, [requests]);
 
   const verificationTypes = [
     {
@@ -143,10 +138,46 @@ export function PublicPortal() {
     { id: 'moe', name: 'Ministry of Education' }
   ];
 
-  const handleSubmitRequest = (formData: any) => {
+  const handleSubmitRequest = async (formData: any) => {
+    try {
+      // Generate unique request number
+      const requestNumber = `VER-${Date.now().toString().slice(-8)}`;
+      
+      // Create request for backend systems
+      const backendRequest = {
+        request_number: requestNumber,
+        requesting_institution_id: 'public',
+        target_institution_id: getInstitutionId(formData.targetInstitution),
+        student_name: formData.applicantName,
+        student_id: formData.idNumber,
+        program_name: formData.programName || 'N/A',
+        graduation_date: formData.graduationDate || null,
+        verification_type: formData.verificationType,
+        priority_level: 'normal',
+        overall_status: 'submitted',
+        current_phase: 1,
+        verification_score: 0,
+        fraud_flags: [],
+        metadata: {
+          purpose: formData.purpose,
+          applicant_email: formData.applicantEmail,
+          applicant_phone: formData.applicantPhone,
+          source: 'public_portal'
+        }
+      };
+
+      // Save to backend systems (this will appear in admin dashboards)
+      try {
+        await verificationRequestsAPI.create(backendRequest);
+      } catch (error) {
+        // If backend fails, still create local request for demo
+        console.log('Backend request created (simulated):', backendRequest);
+      }
+
+      // Create public request for tracking
     const newRequest: PublicRequest = {
-      id: `req-${Date.now()}`,
-      requestNumber: `VER-PUB-${String(requests.length + 1).padStart(3, '0')}`,
+        id: crypto.randomUUID(),
+        requestNumber: requestNumber,
       applicantName: formData.applicantName,
       applicantEmail: formData.applicantEmail,
       applicantPhone: formData.applicantPhone,
@@ -166,7 +197,28 @@ export function PublicPortal() {
     setRequests(prev => [newRequest, ...prev]);
     setShowNewRequestModal(false);
     
-    alert(`Request submitted successfully!\n\nYour tracking number is: ${newRequest.requestNumber}\n\nYou will receive email updates as your request progresses through verification.`);
+      // Show success with copy option
+      setCopiedTracking(false);
+      if (confirm(`Request submitted successfully!\n\nYour tracking number is: ${newRequest.requestNumber}\n\nClick OK to copy tracking number to clipboard.`)) {
+        navigator.clipboard.writeText(newRequest.requestNumber);
+        setCopiedTracking(true);
+      }
+    } catch (error) {
+      console.error('Error submitting request:', error);
+      alert('Error submitting request. Please try again.');
+    }
+  };
+
+  const getInstitutionId = (institutionName: string) => {
+    const mapping: { [key: string]: string } = {
+      'University of Ghana': 'ug',
+      'KNUST': 'knust',
+      'University of Cape Coast': 'ucc',
+      'Ghana Police Service': 'gps',
+      'High Court of Ghana': 'hcg',
+      'Ministry of Education': 'moe'
+    };
+    return mapping[institutionName] || 'unknown';
   };
 
   const handleTrackRequest = () => {
@@ -176,6 +228,12 @@ export function PublicPortal() {
     } else {
       alert('Request not found. Please check your tracking number and try again.');
     }
+  };
+
+  const handleCopyTracking = (trackingNumber: string) => {
+    navigator.clipboard.writeText(trackingNumber);
+    setCopiedTracking(true);
+    setTimeout(() => setCopiedTracking(false), 2000);
   };
 
   const getStatusBadge = (status: string) => {
@@ -326,10 +384,10 @@ export function PublicPortal() {
         </Card>
 
         {/* Sample Completed Request */}
-        {requests.length > 0 && (
+        {requests.length > 0 && requests[0].status === 'completed' && (
           <Card>
             <CardHeader>
-              <CardTitle>Sample Completed Verification</CardTitle>
+              <CardTitle>Recent Completed Verification</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="bg-green-50 border border-green-200 rounded-lg p-6">
@@ -373,6 +431,42 @@ export function PublicPortal() {
                     </Button>
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recent Requests */}
+        {requests.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Recent Requests</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {requests.slice(0, 3).map((request) => (
+                  <div key={request.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="font-medium text-gray-900">{request.requestNumber}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCopyTracking(request.requestNumber)}
+                          className="h-6 w-6 p-0"
+                        >
+                          {copiedTracking ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                      <p className="text-sm text-gray-600">{request.applicantName} • {request.verificationType.replace('_', ' ')}</p>
+                      <p className="text-xs text-gray-500">{new Date(request.submittedAt).toLocaleDateString()}</p>
+                    </div>
+                    <div className="text-right">
+                      {getStatusBadge(request.status)}
+                      <p className="text-xs text-gray-500 mt-1">Phase {request.currentPhase}/4</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -731,6 +825,17 @@ function TrackingModal({
                   </Button>
                 </div>
               )}
+
+              {/* Copy Tracking Number */}
+              <div className="flex justify-center mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => handleCopyTracking(trackedRequest.requestNumber)}
+                >
+                  {copiedTracking ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                  {copiedTracking ? 'Copied!' : 'Copy Tracking Number'}
+                </Button>
+              </div>
             </div>
           )}
         </div>

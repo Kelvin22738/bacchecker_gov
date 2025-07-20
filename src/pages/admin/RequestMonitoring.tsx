@@ -43,6 +43,96 @@ export function RequestMonitoring() {
   const [showRequestDetails, setShowRequestDetails] = useState(false);
   const [selectedRequestData, setSelectedRequestData] = useState<MasterRequest | null>(null);
 
+  // Load public requests from localStorage
+  React.useEffect(() => {
+    const publicRequests = localStorage.getItem('public_verification_requests');
+    if (publicRequests) {
+      try {
+        const parsed = JSON.parse(publicRequests);
+        // Convert public requests to master request format and add to existing requests
+        const convertedRequests = parsed.map((req: any) => ({
+          id: req.id,
+          requestId: req.requestNumber,
+          applicant: req.applicantName,
+          institution_id: getInstitutionId(req.targetInstitution),
+          service_id: getServiceId(req.verificationType),
+          submittedDate: req.submittedAt,
+          status: convertStatus(req.status),
+          risk: req.currentPhase < 2 ? 'On Time' : req.currentPhase < 4 ? 'At Risk' : null,
+          priority: 'Normal',
+          paymentStatus: 'Paid',
+          paymentAmount: getServiceFee(req.verificationType),
+          requesterInfo: {
+            name: req.applicantName,
+            email: req.applicantEmail,
+            phone: req.applicantPhone,
+            address: 'Public Portal',
+            idNumber: req.idNumber
+          },
+          processingHistory: [
+            {
+              id: `hist-${req.id}`,
+              stage: 'Public Submission',
+              action: 'Request submitted via public portal',
+              performedBy: 'Public Portal System',
+              performedAt: req.submittedAt,
+              comments: `Purpose: ${req.purpose}`,
+              duration: 0
+            }
+          ]
+        }));
+        
+        // Add to existing master requests
+        masterRequests.push(...convertedRequests);
+      } catch (error) {
+        console.error('Error loading public requests:', error);
+      }
+    }
+  }, []);
+
+  const getInstitutionId = (institutionName: string) => {
+    const mapping: { [key: string]: string } = {
+      'University of Ghana': 'ug',
+      'KNUST': 'knust',
+      'University of Cape Coast': 'ucc',
+      'Ghana Police Service': 'gps',
+      'High Court of Ghana': 'hcg',
+      'Ministry of Education': 'moe'
+    };
+    return mapping[institutionName] || 'unknown';
+  };
+
+  const getServiceId = (verificationType: string) => {
+    const mapping: { [key: string]: string } = {
+      'academic_certificate': 'ug_transcript',
+      'police_clearance': 'gps_clearance',
+      'court_records': 'hcg_records',
+      'transcript_request': 'ug_transcript'
+    };
+    return mapping[verificationType] || 'unknown_service';
+  };
+
+  const convertStatus = (publicStatus: string) => {
+    const mapping: { [key: string]: string } = {
+      'submitted': 'Submitted',
+      'processing': 'Under Review',
+      'institution_verified': 'Pending Approval',
+      'completed': 'Completed',
+      'rejected': 'Rejected'
+    };
+    return mapping[publicStatus] || 'Submitted';
+  };
+
+  const getServiceFee = (verificationType: string) => {
+    const fees: { [key: string]: number } = {
+      'academic_certificate': 100,
+      'police_clearance': 50,
+      'court_records': 75,
+      'transcript_request': 60
+    };
+    return fees[verificationType] || 50;
+  };
+
   const filteredRequests = masterRequests.filter(request => {
     const statusMatch = statusFilter === 'all' || request.status === statusFilter;
     const institutionMatch = institutionFilter === 'all' || request.institution_id === institutionFilter;
