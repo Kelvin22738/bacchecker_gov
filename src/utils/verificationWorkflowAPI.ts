@@ -1,12 +1,12 @@
-// src/utils/verificationWorkflowAPI.ts - REPLACED
+// src/utils/verificationWorkflowAPI.ts - UPDATED WITH MISSING METHODS
 import { supabase } from './supabase';
 import { VerificationRequest } from '../types/verification';
 
 export class VerificationWorkflowAPI {
   // --- Mappings for Display ---
   private static institutionMapping: { [key: string]: string } = {
-    '066613d3-0837-49e9-82c2-23d1caa1df11': 'KNUST',
-    '5610c1e8-941a-4f51-ab77-882656fd7f17': 'University of Ghana',
+    'b066613d3-0837-49e9-82c2-23d1caa1df11': 'KNUST',
+    'bd5610c1e8-941a-4f51-ab77-882656fd7f17': 'University of Ghana',
     '2d78f1ff-bc42-460b-bbf3-2fb61eb8ca9f': 'University of Cape Coast',
     '2f3dcc21-8fa2-4788-921e-9b1825fd7835': 'Emmanuel University'
   };
@@ -28,6 +28,113 @@ export class VerificationWorkflowAPI {
     'gtec_approved': 'success', 'institution_approved': 'success',
     'gtec_rejected': 'error', 'institution_rejected': 'error'
   };
+
+  // --- Missing Methods Added ---
+
+  /**
+   * Generates a unique request number for verification requests
+   */
+  static generateRequestNumber(): string {
+    return `VER-${Date.now().toString().slice(-8)}`;
+  }
+
+  /**
+   * Creates a new verification request in the database
+   */
+  static async createRequest(requestData: any): Promise<VerificationRequest | null> {
+    try {
+      // Calculate SLA deadline based on priority
+      const priorityLevel = requestData.priority_level || 'normal';
+      const slaHours = priorityLevel === 'urgent' ? 48 : 
+                      priorityLevel === 'high' ? 72 : 120;
+      const slaDeadline = new Date();
+      slaDeadline.setHours(slaDeadline.getHours() + slaHours);
+
+      const { data, error } = await supabase
+        .from('verification_requests')
+        .insert({
+          ...requestData,
+          sla_deadline: slaDeadline.toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating verification request:', error);
+        return null;
+      }
+
+      // Create initial verification phases
+      await this.createInitialPhases(data.id);
+
+      return data as VerificationRequest;
+    } catch (error) {
+      console.error('Exception in createRequest:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Creates initial verification phases for a new request
+   */
+  private static async createInitialPhases(requestId: string): Promise<void> {
+    const phases = [
+      { phase_number: 1, phase_name: 'Initial Processing', phase_status: 'in_progress' },
+      { phase_number: 2, phase_name: 'Institution Verification', phase_status: 'pending' },
+      { phase_number: 3, phase_name: 'Document Authentication', phase_status: 'pending' },
+      { phase_number: 4, phase_name: 'Quality Assurance', phase_status: 'pending' }
+    ];
+
+    try {
+      const { error } = await supabase
+        .from('verification_phases')
+        .insert(
+          phases.map(phase => ({
+            verification_request_id: requestId,
+            ...phase,
+            started_at: phase.phase_status === 'in_progress' ? new Date().toISOString() : null
+          }))
+        );
+
+      if (error) {
+        console.error('Error creating initial phases:', error);
+      }
+    } catch (error) {
+      console.error('Exception creating initial phases:', error);
+    }
+  }
+
+  /**
+   * Creates a notification (basic implementation)
+   */
+  static async createNotification(notificationData: any): Promise<boolean> {
+    try {
+      // This could be expanded to use a notifications table
+      // For now, just log it as an audit entry
+      const { error } = await supabase
+        .from('audit_logs')
+        .insert({
+          table_name: 'notifications',
+          record_id: notificationData.request_id || 'system',
+          action: 'INSERT',
+          new_values: notificationData,
+          user_role: notificationData.user_id || 'system',
+          timestamp: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error creating notification:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Exception in createNotification:', error);
+      return false;
+    }
+  }
 
   // --- Public Status Check Functions ---
 
